@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="56" fill="#f4f7f9"/>
+  
+  <!-- The main curve segment -->
+  <path d="M 64 192 C 64 100, 120 64, 192 64" fill="none" stroke="#4a8ab0" stroke-width="20" stroke-linecap="round"/>
+  
+  <!-- Control Handle line -->
+  <line x1="64" y1="192" x2="64" y2="100" stroke="#9a7040" stroke-width="12"/>
+  
+  <!-- Control Point -->
+  <circle cx="64" cy="100" r="16" fill="#b8904a" stroke="white" stroke-width="8"/>
+  
+  <!-- Anchor Point -->
+  <circle cx="64" cy="192" r="24" fill="#1a5c82" stroke="white" stroke-width="10"/>
+</svg>
