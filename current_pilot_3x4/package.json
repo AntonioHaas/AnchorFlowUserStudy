@@ -1,0 +1,14 @@
+{
+  "name": "anchorflow-user-study-pilot-handoff",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "rebuild": "python3 rebuild.py",
+    "test:geometry": "node geometry.test.cjs",
+    "test:ui": "node check.cjs",
+    "test": "npm run rebuild && npm run test:geometry && npm run test:ui"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

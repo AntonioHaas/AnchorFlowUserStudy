@@ -1,0 +1,29 @@
+{
+  "bundle": "user_study_colleague_handoff_20260916_v1",
+  "created_utc": "2026-09-16T11:26:29Z",
+  "current_public_url": "https://anchorflow-user-study-20260916.anubisjam.chatgpt.site",
+  "current_pilot": {
+    "tasks": 3,
+    "methods": 4,
+    "native_method_paths": 12,
+    "language_order": ["German", "English"],
+    "automatic_server_upload": false
+  },
+  "formal_reference": {
+    "tasks": 6,
+    "methods": ["Ours", "AdaVec"],
+    "practice_trials_per_participant": 2,
+    "formal_edits_per_participant": 12,
+    "participant_results_present": false
+  },
+  "verification": {
+    "standalone_rebuild": "passed",
+    "geometry_tests": "passed: 12 real paths; all node deletions closed and finite",
+    "browser_workflow": "passed: practice, 12 edits, progress, reversible completion, share/download export"
+  },
+  "ai_handoff": {
+    "agent_instructions": "AGENTS.md",
+    "copy_paste_prompt": "AI_HANDOFF_PROMPT.md",
+    "readme": "README.md"
+  }
+}

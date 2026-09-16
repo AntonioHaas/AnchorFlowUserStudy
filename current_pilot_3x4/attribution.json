@@ -1,0 +1,35 @@
+{
+  "usage": "Non-commercial research pilot. Editing targets are adaptations of the source shapes; retain original shape licenses.",
+  "samples": [
+    {
+      "ordinal": 1092,
+      "sample_id": "colorsvg_168c6d2289739684cd9a",
+      "source": "colorsvg",
+      "source_url": "https://github.com/amcghm/ColorSVG-100K",
+      "license_id": "CC-BY-NC-SA-4.0",
+      "source_asset_id": "val:6819",
+      "source_file": "source_assets/colorsvg_168c6d2289739684cd9a.svg",
+      "source_svg_or_glif_sha256": "f46d28ce17847aec09bf9be4b1990afa7f7a17f141d0be96863fc6df8d5eeaf2"
+    },
+    {
+      "ordinal": 973,
+      "sample_id": "stix_ad19bddeef601488a58b",
+      "source": "stix",
+      "source_url": "https://github.com/stipub/stixfonts",
+      "license_id": "OFL-1.1",
+      "source_asset_id": "source/STIXTwoMath-Regular.ufo/glyphs/xsansbolditalic.glif",
+      "source_file": "source_assets/stix_ad19bddeef601488a58b.glif",
+      "source_svg_or_glif_sha256": "116791d205c6df80b6852b336a7a50382854ea2402c14e2c475a6599b3c2a481"
+    },
+    {
+      "ordinal": 1285,
+      "sample_id": "colorsvg_3d9830d200f98318efee",
+      "source": "colorsvg",
+      "source_url": "https://github.com/amcghm/ColorSVG-100K",
+      "license_id": "CC-BY-NC-SA-4.0",
+      "source_asset_id": "val:2132",
+      "source_file": "source_assets/colorsvg_3d9830d200f98318efee.svg",
+      "source_svg_or_glif_sha256": "8bd505882642905769b79266a2c4d846dca4ec0dca981c47e68a0a150f815f4b"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "provenance": "Original synthetic stimuli designed for this proposed study; not model outputs; no participant data.",
+  "formal": [
+    {
+      "id": "T01",
+      "name": "Extend an arrow tip",
+      "difficulty": "Medium-low",
+      "instruction": "Move the tip 20 px right. Keep the shoulders and shaft fixed.",
+      "before": "M35 109 L145 109 L145 78 L216 128 L145 178 L145 147 L35 147 Z",
+      "after": "M35 109 L145 109 L145 78 L236 128 L145 178 L145 147 L35 147 Z",
+      "changed": "M145 78 L236 128 L145 178"
+    },
+    {
+      "id": "T02",
+      "name": "Tilt a droplet tip",
+      "difficulty": "Medium",
+      "instruction": "Move the tip 18 px left and 14 px up. Preserve the lower body.",
+      "before": "M128 36 C153 64 197 105 197 151 C197 214 58 214 58 151 C58 98 103 66 128 36 Z",
+      "after": "M110 22 C145 55 197 105 197 151 C197 214 58 214 58 151 C58 98 95 57 110 22 Z",
+      "changed": "M58 151 C58 98 95 57 110 22 C145 55 197 105 197 151"
+    },
+    {
+      "id": "T03",
+      "name": "Expand one side of a leaf",
+      "difficulty": "Medium",
+      "instruction": "Raise the upper arc by about 16 px. Keep both tips and lower arc fixed.",
+      "before": "M45 190 C50 78 123 41 208 48 C213 113 156 184 45 190 Z",
+      "after": "M45 190 C50 55 123 21 208 48 C213 113 156 184 45 190 Z",
+      "changed": "M45 190 C50 55 123 21 208 48"
+    },
+    {
+      "id": "T04",
+      "name": "Raise a rounded cap",
+      "difficulty": "Medium",
+      "instruction": "Raise the top midpoint 18 px. Preserve the sides, base and symmetry.",
+      "before": "M48 140 C48 67 208 67 208 140 L208 185 Q208 208 184 208 L72 208 Q48 208 48 185 Z",
+      "after": "M48 140 C48 43 208 43 208 140 L208 185 Q208 208 184 208 L72 208 Q48 208 48 185 Z",
+      "changed": "M48 140 C48 43 208 43 208 140"
+    },
+    {
+      "id": "T05",
+      "name": "Widen a rounded slot",
+      "difficulty": "Medium-plus",
+      "instruction": "Move each slot wall 12 px outward. Keep slot depth and outer edges fixed.",
+      "before": "M48 70 L94 70 L94 119 Q94 134 109 134 L147 134 Q162 134 162 119 L162 70 L208 70 L208 207 L48 207 Z",
+      "after": "M48 70 L82 70 L82 119 Q82 134 97 134 L159 134 Q174 134 174 119 L174 70 L208 70 L208 207 L48 207 Z",
+      "changed": "M82 70 L82 119 Q82 134 97 134 L159 134 Q174 134 174 119 L174 70"
+    },
+    {
+      "id": "T06",
+      "name": "Deepen a curved notch",
+      "difficulty": "Medium",
+      "instruction": "Deepen the notch by about 20 px. Keep its opening and outer boundary fixed.",
+      "before": "M60 60 L196 60 L196 105 C151 105 151 151 196 151 L196 196 L60 196 Q44 196 44 180 L44 76 Q44 60 60 60 Z",
+      "after": "M60 60 L196 60 L196 105 C125 105 125 151 196 151 L196 196 L60 196 Q44 196 44 180 L44 76 Q44 60 60 60 Z",
+      "changed": "M196 105 C125 105 125 151 196 151"
+    }
+  ],
+  "practice": [
+    {
+      "id": "W01",
+      "name": "Practice: move a corner",
+      "difficulty": "Practice",
+      "instruction": "Move the top corner upward; use Undo once.",
+      "before": "M60 200 L128 70 L196 200 Z",
+      "after": "M60 200 L128 50 L196 200 Z",
+      "changed": "M60 200 L128 50 L196 200"
+    },
+    {
+      "id": "W02",
+      "name": "Practice: change curvature",
+      "difficulty": "Practice",
+      "instruction": "Raise the upper curve while keeping the lower curve fixed.",
+      "before": "M48 140 C48 70 208 70 208 140 C208 210 48 210 48 140 Z",
+      "after": "M48 140 C48 50 208 50 208 140 C208 210 48 210 48 140 Z",
+      "changed": "M48 140 C48 50 208 50 208 140"
+    }
+  ]
+}
