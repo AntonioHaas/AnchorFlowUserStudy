@@ -250,8 +250,8 @@ export default function StudyPage() {
 
   // ── Main Workspace ──
   return (
-    <div className="min-h-screen p-2 md:p-4">
-      <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
+    <div className="min-h-screen p-2 md:p-4 pb-12">
+      <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-5rem)]">
         <TopNav />
 
         <div className="flex flex-col lg:flex-row gap-3 items-start flex-1 min-h-0">
@@ -329,9 +329,15 @@ export default function StudyPage() {
                 : index === tasksData.formal.length - 1
                   ? t.finish
                   : t.next}
-              <ChevronRight className="ml-1 h-4 w-4" />
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
+        </div>
+        
+        {/* ── Citation ── */}
+        <div className="text-center text-xs text-muted-foreground mt-1 mb-8">
+          Einige Formen stammen aus <a href="https://github.com/amcghm/ColorSVG-100K" className="underline hover:text-foreground" target="_blank" rel="noreferrer">ColorSVG-100K</a> (CC BY-NC-SA 4.0) und STIX-Schriften. 
+          Some shapes come from ColorSVG-100K and STIX fonts. <a href="/attribution.json" className="underline hover:text-foreground" target="_blank" rel="noreferrer">Lizenzen / Licenses</a>.
         </div>
       </div>
     </div>

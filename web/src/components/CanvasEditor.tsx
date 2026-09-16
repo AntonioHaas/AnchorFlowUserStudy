@@ -58,7 +58,7 @@ export default function CanvasEditor({
 
   const [running, setRunning] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [remainingTime, setRemainingTime] = useState(90)
+  const [remainingTime, setRemainingTime] = useState(isPractice ? 120 : 90)
 
   useEffect(() => {
     const svg = svgRef.current
