@@ -1,21 +1,24 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react'
 import Geometry from '@/lib/geometry'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Play, Pause, Check, X, RotateCcw } from 'lucide-react'
 
 function clone(x: any) {
   return JSON.parse(JSON.stringify(x))
 }
 
-export default function CanvasEditor({ 
-  task, 
-  method, 
-  isPractice, 
+export default function CanvasEditor({
+  task,
+  method,
+  isPractice,
   onComplete,
-  onAbandon,
-  onInteraction
 }: any) {
   const svgRef = useRef<SVGSVGElement>(null)
-  
+
   const [state, setState] = useState(() => {
     const src = task.predictions[method.key]
     const graph = Geometry.parse(src.d)
@@ -34,31 +37,25 @@ export default function CanvasEditor({
   const [running, setRunning] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [remainingTime, setRemainingTime] = useState(90)
-  
-  // This is a simplified port of the vanilla JS logic.
-  // Due to time constraints and the complexity of the custom SVG drag logic,
-  // we will use vanilla event listeners on the SVG ref.
-  
+
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
 
     let s = { ...state, drag: null as any }
     let space = false
-    
+
     function draw() {
-      // Manual DOM manipulation for the SVG to ensure maximum performance during drag
-      // just like the original app.js
       svg!.innerHTML = ''
       const scale = s.view.w / 280
       svg!.setAttribute('viewBox', `${s.view.x} ${s.view.y} ${s.view.w} ${s.view.h}`)
-      
+
       const clipId = `target-clip-${task.id}-${method.key}`
       const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
       const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath')
       clip.setAttribute('id', clipId)
-      
-      const bounds = task.target_guide_bounds || {x:0, y:0, width:256, height:256}
+
+      const bounds = task.target_guide_bounds || { x: 0, y: 0, width: 256, height: 256 }
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
       rect.setAttribute('x', bounds.x.toString())
       rect.setAttribute('y', bounds.y.toString())
@@ -68,17 +65,17 @@ export default function CanvasEditor({
       defs.appendChild(clip)
       svg!.appendChild(defs)
 
+      // Editable shape
       const pathBg = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      pathBg.setAttribute('class', 'editable-path')
       pathBg.setAttribute('d', Geometry.path(s.graph))
-      pathBg.setAttribute('fill', '#d9e7ee')
-      pathBg.setAttribute('stroke', '#397ca3')
+      pathBg.setAttribute('fill', '#dce8ef')
+      pathBg.setAttribute('stroke', '#4a7a9a')
       pathBg.setAttribute('stroke-width', (0.8 * scale).toString())
       pathBg.setAttribute('pointer-events', 'none')
       svg!.appendChild(pathBg)
 
+      // Target overlay (magenta dashed guide)
       const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      overlay.setAttribute('class', 'target-overlay')
       overlay.setAttribute('d', task.target_guide || task.after)
       overlay.setAttribute('fill', 'none')
       overlay.setAttribute('stroke', '#b34763')
@@ -88,7 +85,7 @@ export default function CanvasEditor({
       overlay.setAttribute('pointer-events', 'none')
       svg!.appendChild(overlay)
 
-      // Segments
+      // Segment hit targets
       s.graph.edges.forEach((e: any, j: number) => {
         const seg = document.createElementNS('http://www.w3.org/2000/svg', 'path')
         const a = s.graph.nodes[e.a], b = s.graph.nodes[e.b]
@@ -97,12 +94,11 @@ export default function CanvasEditor({
         seg.setAttribute('fill', 'none')
         seg.setAttribute('stroke', 'transparent')
         seg.setAttribute('stroke-width', (8 * scale).toString())
-        seg.setAttribute('class', 'segment')
         seg.setAttribute('data-segment', j.toString())
         svg!.appendChild(seg)
       })
 
-      // Controls
+      // Control handles
       s.graph.edges.forEach((e: any, j: number) => {
         if (!e.c1) return
         for (const [k, ni] of [['c1', e.a], ['c2', e.b]] as const) {
@@ -111,32 +107,30 @@ export default function CanvasEditor({
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
           line.setAttribute('x1', a.x); line.setAttribute('y1', a.y)
           line.setAttribute('x2', p.x); line.setAttribute('y2', p.y)
-          line.setAttribute('stroke', '#d49145')
-          line.setAttribute('stroke-width', (0.7 * scale).toString())
+          line.setAttribute('stroke', '#9a7040')
+          line.setAttribute('stroke-width', (0.6 * scale).toString())
           svg!.appendChild(line)
 
           const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
           circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-          circle.setAttribute('r', (2.7 * scale).toString())
-          circle.setAttribute('fill', '#e4a355')
+          circle.setAttribute('r', (2.5 * scale).toString())
+          circle.setAttribute('fill', '#b8904a')
           circle.setAttribute('stroke', 'white')
-          circle.setAttribute('stroke-width', (0.7 * scale).toString())
-          circle.setAttribute('class', 'handle')
+          circle.setAttribute('stroke-width', (0.6 * scale).toString())
           circle.setAttribute('data-edge', j.toString())
           circle.setAttribute('data-control', k)
           svg!.appendChild(circle)
         }
       })
 
-      // Nodes
+      // Anchor nodes
       s.graph.nodes.forEach((p: any, j: number) => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
         circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-        circle.setAttribute('r', (s.selected.has(j) ? 3.2 : 2.4 * scale).toString())
-        circle.setAttribute('fill', s.selected.has(j) ? '#165c88' : '#3989b6')
+        circle.setAttribute('r', (s.selected.has(j) ? 3.0 : 2.2 * scale).toString())
+        circle.setAttribute('fill', s.selected.has(j) ? '#1a5c82' : '#4a8ab0')
         circle.setAttribute('stroke', 'white')
-        circle.setAttribute('stroke-width', (0.8 * scale).toString())
-        circle.setAttribute('class', 'node')
+        circle.setAttribute('stroke-width', (0.7 * scale).toString())
         circle.setAttribute('data-node', j.toString())
         svg!.appendChild(circle)
       })
@@ -159,7 +153,6 @@ export default function CanvasEditor({
       const n = e.target.dataset.node, edge = e.target.dataset.edge, segment = e.target.dataset.segment
       if (s.adding && segment !== undefined) {
         e.preventDefault()
-        // insert(s, +segment, point(e))
         return
       }
       if (segment !== undefined) return
@@ -260,35 +253,80 @@ export default function CanvasEditor({
       stop_reason: reason,
       elapsed_seconds: 90 - remainingTime,
       final_anchor_count: state.graph.nodes.length,
-      original_anchor_count: task.predictions[method.key].original_anchor_count
+      original_anchor_count: task.predictions[method.key].original_anchor_count,
     })
   }
 
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
   return (
-    <div className="border rounded-xl p-4 bg-white shadow-sm flex flex-col gap-4">
-      <div className="flex justify-between items-center border-b pb-2">
-        <h3 className="font-bold text-lg">{method.label}</h3>
-        <span className={remainingTime <= 10 ? "text-red-500 font-bold" : "text-gray-500"}>
-          {submitted ? 'Fertig' : (running ? `${remainingTime}s` : 'Pausiert / Paused')}
-        </span>
-      </div>
-      <div className="relative aspect-square w-full bg-slate-50 overflow-hidden border rounded-md">
-        <svg ref={svgRef} className="w-full h-full outline-none" tabIndex={0} />
-      </div>
-      <div className="flex gap-2 flex-wrap">
+    <Card className="flex flex-col">
+      <CardHeader className="py-2.5 px-4 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-medium">{method.label}</CardTitle>
+        <Badge
+          variant={submitted ? 'secondary' : remainingTime <= 10 ? 'destructive' : 'outline'}
+          className="font-mono text-xs"
+        >
+          {submitted
+            ? 'Abgeschlossen'
+            : running
+              ? formatTime(remainingTime)
+              : 'Pausiert'}
+        </Badge>
+      </CardHeader>
+      <Separator />
+      <CardContent className="p-0 flex-1">
+        <div className="relative aspect-square w-full overflow-hidden">
+          <svg
+            ref={svgRef}
+            className="w-full h-full outline-none cursor-crosshair"
+            tabIndex={0}
+          />
+        </div>
+      </CardContent>
+
+      <Separator />
+      
+      {/* Action buttons (always below canvas now) */}
+      <div className="flex items-center gap-2 p-2.5 bg-muted/30">
         {!running && !submitted && (
-          <button onClick={() => setRunning(true)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+          <Button size="sm" onClick={() => setRunning(true)} className="w-full">
+            <Play className="mr-1.5 h-3.5 w-3.5" />
             {remainingTime === 90 ? 'Starten / Start' : 'Fortsetzen / Resume'}
-          </button>
+          </Button>
         )}
+        
         {running && !submitted && (
           <>
-            <button onClick={() => setRunning(false)} className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">Pause</button>
-            <button onClick={() => handleFinish('participant_finished')} className="px-3 py-1 bg-gray-100 text-gray-700 border rounded text-sm hover:bg-gray-200">Fertig / Done</button>
-            <button onClick={() => handleFinish('gave_up')} className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded text-sm hover:bg-red-100">Aufgeben / Give up</button>
+            <Button size="sm" variant="outline" onClick={() => setRunning(false)}>
+              <Pause className="mr-1.5 h-3.5 w-3.5" />
+              Pause
+            </Button>
+            <div className="flex-1" />
+            <Button size="sm" variant="outline" onClick={() => handleFinish('participant_finished')}>
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+              Fertig / Done
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => handleFinish('gave_up')} className="text-muted-foreground">
+              <X className="mr-1.5 h-3.5 w-3.5" />
+              Aufgeben
+            </Button>
           </>
         )}
+
+        {submitted && (
+          <div className="w-full flex items-center justify-center">
+            <Badge variant="secondary" className="text-xs">
+              <Check className="mr-1 h-3 w-3" />
+              Abgeschlossen / Done
+            </Badge>
+          </div>
+        )}
       </div>
-    </div>
+    </Card>
   )
 }
