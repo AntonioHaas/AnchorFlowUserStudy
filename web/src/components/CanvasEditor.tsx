@@ -85,7 +85,7 @@ export default function CanvasEditor({
     }
 
     function remember(type: string) {
-      s.history.push(snapshot())
+      s.history = [...s.history, snapshot()]
       s.future = []
       log(type)
     }
@@ -200,6 +200,7 @@ export default function CanvasEditor({
       if (s.adding && segment !== undefined) {
         e.preventDefault()
         if (running && !submitted) {
+          s.graph = clone(s.graph)
           const t = Geometry.nearest(s.graph, +segment, point(e))
           remember('insert_anchor')
           const next = Geometry.split(s.graph, +segment, t)
@@ -264,9 +265,17 @@ export default function CanvasEditor({
       e.preventDefault()
       if (!running || submitted) return
       if (s.drag) return
-      const p = point(e), factor = e.deltaY > 0 ? 1.12 : 1 / 1.12
-      const w = Math.max(35, Math.min(900, s.view.w * factor)), ratio = w / s.view.w
-      s.view = { x: p.x - (p.x - s.view.x) * ratio, y: p.y - (p.y - s.view.y) * ratio, w, h: w }
+      
+      if (e.ctrlKey) {
+        // Zoom (Ctrl + Wheel or Trackpad Pinch)
+        const p = point(e), factor = e.deltaY > 0 ? 1.12 : 1 / 1.12
+        const w = Math.max(35, Math.min(900, s.view.w * factor)), ratio = w / s.view.w
+        s.view = { x: p.x - (p.x - s.view.x) * ratio, y: p.y - (p.y - s.view.y) * ratio, w, h: w }
+      } else {
+        // Pan (Trackpad Swipe or Mouse Wheel)
+        const scale = s.view.w / svg.getBoundingClientRect().width
+        s.view = { ...s.view, x: s.view.x + e.deltaX * scale, y: s.view.y + e.deltaY * scale }
+      }
       draw()
     }
 
@@ -275,11 +284,11 @@ export default function CanvasEditor({
     svg.addEventListener('pointerup', onPointerUp)
     svg.addEventListener('pointercancel', onPointerUp)
     svg.addEventListener('lostpointercapture', onPointerUp)
-    svg.addEventListener('wheel', onWheel, { passive: false })
-    svg.addEventListener('dblclick', (e: any) => {
+    const onDoubleClick = (e: any) => {
       const j = e.target.dataset.segment
       if (j !== undefined && running && !submitted) {
         e.preventDefault()
+        s.graph = clone(s.graph)
         const t = Geometry.nearest(s.graph, +j, point(e))
         remember('insert_anchor')
         const next = Geometry.split(s.graph, +j, t)
@@ -287,7 +296,10 @@ export default function CanvasEditor({
         s.adding = false
         setState({ ...s })
       }
-    })
+    }
+
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDoubleClick)
 
     draw()
 
@@ -298,6 +310,7 @@ export default function CanvasEditor({
       svg.removeEventListener('pointercancel', onPointerUp)
       svg.removeEventListener('lostpointercapture', onPointerUp)
       svg.removeEventListener('wheel', onWheel)
+      svg.removeEventListener('dblclick', onDoubleClick)
     }
   }, [task, method, running, submitted])
 
@@ -440,7 +453,22 @@ export default function CanvasEditor({
       {/* Action buttons (always below canvas now) */}
       <div className="flex items-center gap-2 p-2.5 bg-muted/30">
         {!running && !submitted && (
-          <Button size="sm" onClick={() => setRunning(true)} className="w-full">
+          <Button size="sm" onClick={() => {
+            const rect = svgRef.current?.getBoundingClientRect()
+            setState(prev => {
+              const ops = [...prev.operations]
+              if (rect) {
+                ops.push({ 
+                  type: 'canvas_meta', 
+                  elapsed_seconds: +(elapsedMs() / 1000).toFixed(3),
+                  canvas_width: rect.width, 
+                  canvas_height: rect.height 
+                })
+              }
+              return { ...prev, operations: ops }
+            })
+            setRunning(true)
+          }} className="w-full">
             <Play className="mr-1.5 h-3.5 w-3.5" />
             {remainingTime === (isPractice ? 120 : 90) ? t.start : t.resume}
           </Button>

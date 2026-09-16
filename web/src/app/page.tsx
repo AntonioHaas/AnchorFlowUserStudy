@@ -218,10 +218,10 @@ export default function StudyPage() {
         <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
           <TopNav />
           <div className="flex items-center justify-center min-h-[85vh]">
-            <Card className="w-full max-w-2xl mx-4">
+            <Card className="w-full max-w-2xl mx-4 overflow-hidden">
               <CardHeader className="text-center pb-2">
-                <CardTitle className="text-3xl font-bold">{t.landingTitle}</CardTitle>
-                <CardDescription className="text-lg mt-2">
+                <CardTitle className="text-2xl sm:text-3xl font-bold break-words hyphens-auto">{t.landingTitle}</CardTitle>
+                <CardDescription className="text-base sm:text-lg mt-2">
                   {lang === 'de' ? 'Vector Shape Editing' : 'Vector Shape Editing'}
                 </CardDescription>
               </CardHeader>
