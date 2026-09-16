@@ -158,7 +158,7 @@ export default function CanvasEditor({
 
           const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
           circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-          circle.setAttribute('r', (2.5 * scale).toString())
+          circle.setAttribute('r', (2.8 * scale).toString())
           circle.setAttribute('fill', '#b8904a')
           circle.setAttribute('stroke', 'white')
           circle.setAttribute('stroke-width', (0.6 * scale).toString())
@@ -172,7 +172,7 @@ export default function CanvasEditor({
       s.graph.nodes.forEach((p: any, j: number) => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
         circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-        circle.setAttribute('r', (s.selected.has(j) ? 3.0 : 2.2 * scale).toString())
+        circle.setAttribute('r', ((s.selected.has(j) ? 3.2 : 2.4) * scale).toString())
         circle.setAttribute('fill', s.selected.has(j) ? '#1a5c82' : '#4a8ab0')
         circle.setAttribute('stroke', 'white')
         circle.setAttribute('stroke-width', (0.7 * scale).toString())
@@ -197,16 +197,47 @@ export default function CanvasEditor({
         return
       }
       const n = e.target.dataset.node, edge = e.target.dataset.edge, segment = e.target.dataset.segment
-      if (s.adding && segment !== undefined) {
+      if (s.adding) {
         e.preventDefault()
         if (running && !submitted) {
           s.graph = clone(s.graph)
-          const t = Geometry.nearest(s.graph, +segment, point(e))
-          remember('insert_anchor')
-          const next = Geometry.split(s.graph, +segment, t)
-          s.selected = new Set([next])
-          s.adding = false
-          draw()
+          const p = point(e)
+          let targetJ = segment !== undefined ? +segment : -1
+          let targetT = 0
+          
+          if (targetJ !== -1) {
+             targetT = Geometry.nearest(s.graph, targetJ, p)
+          } else {
+             let minDist = Infinity
+             for (let j = 0; j < s.graph.edges.length; j++) {
+               const t = Geometry.nearest(s.graph, j, p)
+               const c = Geometry.controls(s.graph, s.graph.edges[j])
+               const pt = Geometry.at(c, t)
+               const d = Math.hypot(pt.x - p.x, pt.y - p.y)
+               if (d < minDist) {
+                 minDist = d; targetJ = j; targetT = t
+               }
+             }
+          }
+          
+          if (targetJ !== -1) {
+            remember('insert_anchor')
+            const next = Geometry.split(s.graph, targetJ, targetT)
+            if (segment === undefined) {
+              const dx = p.x - s.graph.nodes[next].x
+              const dy = p.y - s.graph.nodes[next].y
+              s.graph.nodes[next].x += dx
+              s.graph.nodes[next].y += dy
+              for (const ed of s.graph.edges) {
+                if (ed.c1 && ed.a === next) { ed.c1.x += dx; ed.c1.y += dy }
+                if (ed.c2 && ed.b === next) { ed.c2.x += dx; ed.c2.y += dy }
+              }
+            }
+            s.selected = new Set([next])
+            s.adding = false
+            setState({ ...s })
+            draw()
+          }
         }
         return
       }
@@ -312,7 +343,7 @@ export default function CanvasEditor({
       svg.removeEventListener('wheel', onWheel)
       svg.removeEventListener('dblclick', onDoubleClick)
     }
-  }, [task, method, running, submitted])
+  }, [task, method, running, submitted, state])
 
   useEffect(() => {
     let timer: any
@@ -460,7 +491,7 @@ export default function CanvasEditor({
               if (rect) {
                 ops.push({ 
                   type: 'canvas_meta', 
-                  elapsed_seconds: +(elapsedMs() / 1000).toFixed(3),
+                  elapsed_seconds: (isPractice ? 120 : 90) - remainingTime,
                   canvas_width: rect.width, 
                   canvas_height: rect.height 
                 })
