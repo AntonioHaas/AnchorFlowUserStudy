@@ -27,6 +27,10 @@ export default function CanvasEditor({
       giveUp: 'Aufgeben',
       completed: 'Abgeschlossen',
       paused: 'Pausiert',
+      addAnchor: '＋ Ankerpunkt',
+      deleteAnchor: 'Anker löschen',
+      undo: 'Rückgängig',
+      redo: 'Wiederholen',
     },
     en: {
       start: 'Start',
@@ -36,6 +40,10 @@ export default function CanvasEditor({
       giveUp: 'Give Up',
       completed: 'Completed',
       paused: 'Paused',
+      addAnchor: '＋ Anchor',
+      deleteAnchor: 'Delete anchor',
+      undo: 'Undo',
+      redo: 'Redo',
     }
   }
   const t = (TRANSLATIONS as any)[lang]
@@ -66,6 +74,21 @@ export default function CanvasEditor({
 
     let s = { ...state, drag: null as any }
     let space = false
+
+    function log(type: string, extra = {}) {
+      const timeLimit = isPractice ? 120 : 90
+      s.operations.push({ type, elapsed_seconds: +(timeLimit - remainingTime).toFixed(3), ...extra })
+    }
+
+    function snapshot() {
+      return { graph: clone(s.graph), selected: [...s.selected] }
+    }
+
+    function remember(type: string) {
+      s.history.push(snapshot())
+      s.future = []
+      log(type)
+    }
 
     function draw() {
       svg!.innerHTML = ''
@@ -176,6 +199,14 @@ export default function CanvasEditor({
       const n = e.target.dataset.node, edge = e.target.dataset.edge, segment = e.target.dataset.segment
       if (s.adding && segment !== undefined) {
         e.preventDefault()
+        if (running && !submitted) {
+          const t = Geometry.nearest(s.graph, +segment, point(e))
+          remember('insert_anchor')
+          const next = Geometry.split(s.graph, +segment, t)
+          s.selected = new Set([next])
+          s.adding = false
+          draw()
+        }
         return
       }
       if (segment !== undefined) return
@@ -208,6 +239,7 @@ export default function CanvasEditor({
       const p = point(e), dx = p.x - s.drag.start.x, dy = p.y - s.drag.start.y
       if (!s.drag.remembered) {
         if (Math.hypot(dx, dy) < 0.15) return
+        remember(s.drag.node === null ? 'move_control' : 'move_anchor')
         s.drag.remembered = true
       }
       s.graph = clone(s.drag.base)
@@ -244,6 +276,18 @@ export default function CanvasEditor({
     svg.addEventListener('pointercancel', onPointerUp)
     svg.addEventListener('lostpointercapture', onPointerUp)
     svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', (e: any) => {
+      const j = e.target.dataset.segment
+      if (j !== undefined && running && !submitted) {
+        e.preventDefault()
+        const t = Geometry.nearest(s.graph, +j, point(e))
+        remember('insert_anchor')
+        const next = Geometry.split(s.graph, +j, t)
+        s.selected = new Set([next])
+        s.adding = false
+        setState({ ...s })
+      }
+    })
 
     draw()
 
@@ -278,8 +322,62 @@ export default function CanvasEditor({
       elapsed_seconds: timeLimit - remainingTime,
       stop_reason: reason,
       original_anchor_count: isPractice ? state.initial.nodes.length : (task.predictions[method.key]?.original_anchor_count || state.initial.nodes.length),
-      final_anchor_count: state.graph.nodes.length
+      final_anchor_count: state.graph.nodes.length,
+      operations: state.operations
     })
+  }
+
+  const handleUndo = () => {
+    if (!running || submitted) return
+    setState((prev: any) => {
+      if (!prev.history.length) return prev
+      const s = clone(prev)
+      s.future.push({ graph: clone(prev.graph), selected: [...prev.selected] })
+      const v = s.history.pop()
+      s.graph = v.graph
+      s.selected = new Set(v.selected)
+      const timeLimit = isPractice ? 120 : 90
+      s.operations.push({ type: 'undo', elapsed_seconds: +(timeLimit - remainingTime).toFixed(3) })
+      return s
+    })
+  }
+
+  const handleRedo = () => {
+    if (!running || submitted) return
+    setState((prev: any) => {
+      if (!prev.future.length) return prev
+      const s = clone(prev)
+      s.history.push({ graph: clone(prev.graph), selected: [...prev.selected] })
+      const v = s.future.pop()
+      s.graph = v.graph
+      s.selected = new Set(v.selected)
+      const timeLimit = isPractice ? 120 : 90
+      s.operations.push({ type: 'redo', elapsed_seconds: +(timeLimit - remainingTime).toFixed(3) })
+      return s
+    })
+  }
+
+  const handleRemove = () => {
+    if (!running || submitted) return
+    setState((prev: any) => {
+      if (!prev.selected.size || prev.graph.nodes.length <= 2) return prev
+      const s = clone(prev)
+      s.history.push({ graph: clone(prev.graph), selected: [...prev.selected] })
+      s.future = []
+      const timeLimit = isPractice ? 120 : 90
+      s.operations.push({ type: 'delete_anchor', elapsed_seconds: +(timeLimit - remainingTime).toFixed(3) })
+      let next = 0
+      for (const n of [...s.selected].sort((a: number, b: number) => b - a)) {
+        next = Geometry.remove(s.graph, n)
+      }
+      s.selected = new Set([next])
+      return s
+    })
+  }
+
+  const toggleAdding = () => {
+    if (!running || submitted) return
+    setState((prev: any) => ({ ...prev, adding: !prev.adding }))
   }
 
   const formatTime = (secs: number) => {
@@ -318,6 +416,24 @@ export default function CanvasEditor({
 
       <Separator />
       
+      {/* Editor toolbar */}
+      <div className="flex flex-wrap items-center gap-2 p-2.5 bg-muted/10 border-b">
+        <Button size="sm" variant={state.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!running || submitted}>
+          {t.addAnchor}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleRemove} disabled={!state.selected.size || state.graph.nodes.length <= 2 || !running || submitted}>
+          {t.deleteAnchor}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleUndo} disabled={!state.history.length || !running || submitted}>
+          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+          {t.undo}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleRedo} disabled={!state.future.length || !running || submitted}>
+          <RotateCcw className="mr-1.5 h-3.5 w-3.5 scale-x-[-1]" />
+          {t.redo}
+        </Button>
+      </div>
+
       {/* Action buttons (always below canvas now) */}
       <div className="flex items-center gap-2 p-2.5 bg-muted/30">
         {!running && !submitted && (
@@ -334,13 +450,13 @@ export default function CanvasEditor({
               {t.pause}
             </Button>
             <div className="flex-1" />
+            <Button size="sm" variant="destructive" onClick={() => handleFinish('gave_up')}>
+              <X className="mr-1.5 h-3.5 w-3.5" />
+              {t.giveUp}
+            </Button>
             <Button size="sm" variant="outline" onClick={() => handleFinish('participant_finished')}>
               <Check className="mr-1.5 h-3.5 w-3.5" />
               {t.done}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => handleFinish('gave_up')} className="text-muted-foreground">
-              <X className="mr-1.5 h-3.5 w-3.5" />
-              {t.giveUp}
             </Button>
           </>
         )}
