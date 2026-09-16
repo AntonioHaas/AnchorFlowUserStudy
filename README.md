@@ -1,5 +1,21 @@
 # AnchorFlow user-study web handoff [![Netlify Status](https://api.netlify.com/api/v1/badges/a7899cb9-8a7b-489f-8325-73e36abe0af5/deploy-status)](https://app.netlify.com/projects/anchorflowuserstudy/deploys)
 
+## Active Next.js study (`web/`)
+
+The active app uses **4 examples × 3 methods: Ours, AdaVec, LIVE**, for **12 editing attempts** per participant, plus the existing practice. The examples are clean2400 ordinals **1092, 973, 1285, 3**. The fourth task adjusts the crescent's inner curve while preserving its endpoints and outer contour.
+
+- Start locally: `cd web && npm ci && npm run dev`.
+- Task data: `web/src/lib/tasks.json`; method slots and denominator: `web/src/app/page.tsx`.
+- Fourth-example originals and provenance: `web/study_assets/B0003/`.
+- Validate stimuli: `cd web && node scripts/build_tasks.mjs`. This now checks the current data; it does not regenerate the old 6×2 design.
+- Build: `cd web && npm run build`.
+
+The existing Next.js editing, timing, randomized method presentation, scoring and results API are retained. Netlify builds `web/` as configured in `netlify.toml`. This branch updates stimuli and their configuration; it does not establish that a participant study has been completed.
+
+## Archived static-page handoff
+
+The sections below describe the earlier static page and the older 6×2 reference protocol; they are retained as historical material, not the active Next.js task configuration.
+
 This bundle is intended for a colleague who will continue improving the web interface and run a small number of pilot sessions.
 
 If an AI coding agent is doing the work, it should read `AGENTS.md` first. `AI_HANDOFF_PROMPT.md` contains a ready-to-paste starting prompt.
