@@ -32,18 +32,9 @@ create table public.study_records (
     operations jsonb
 );
 
--- Enable RLS
+-- Enable RLS (defense-in-depth: blocks all client-side access via anon key)
 alter table public.study_sessions enable row level security;
 alter table public.study_records enable row level security;
 
--- Grant table access to anon and authenticated roles
-grant select, insert on public.study_sessions to anon, authenticated;
-grant select, insert on public.study_records to anon, authenticated;
-
--- RLS policies: allow anonymous inserts (study participants are not logged in)
-create policy "Allow inserts for sessions" on public.study_sessions for insert with check (true);
-create policy "Allow inserts for records" on public.study_records for insert with check (true);
-
--- RLS policies: allow select for health checks and data export
-create policy "Allow select for sessions" on public.study_sessions for select using (true);
-create policy "Allow select for records" on public.study_records for select using (true);
+-- No policies for anon role — data is only accessible server-side via service_role key.
+-- The service_role key bypasses RLS entirely.
