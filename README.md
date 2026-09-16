@@ -1,4 +1,4 @@
-# AnchorFlow user-study web handoff
+# AnchorFlow user-study web handoff [![Netlify Status](https://api.netlify.com/api/v1/badges/a7899cb9-8a7b-489f-8325-73e36abe0af5/deploy-status)](https://app.netlify.com/projects/anchorflowuserstudy/deploys)
 
 This bundle is intended for a colleague who will continue improving the web interface and run a small number of pilot sessions.
 
