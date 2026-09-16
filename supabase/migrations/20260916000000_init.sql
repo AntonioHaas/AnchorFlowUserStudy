@@ -36,6 +36,14 @@ create table public.study_records (
 alter table public.study_sessions enable row level security;
 alter table public.study_records enable row level security;
 
--- Create policies allowing insert from authenticated/anon roles
+-- Grant table access to anon and authenticated roles
+grant select, insert on public.study_sessions to anon, authenticated;
+grant select, insert on public.study_records to anon, authenticated;
+
+-- RLS policies: allow anonymous inserts (study participants are not logged in)
 create policy "Allow inserts for sessions" on public.study_sessions for insert with check (true);
 create policy "Allow inserts for records" on public.study_records for insert with check (true);
+
+-- RLS policies: allow select for health checks and data export
+create policy "Allow select for sessions" on public.study_sessions for select using (true);
+create policy "Allow select for records" on public.study_records for select using (true);
