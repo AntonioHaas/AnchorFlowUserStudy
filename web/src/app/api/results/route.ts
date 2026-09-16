@@ -50,11 +50,31 @@ const handler = withSupabase({ auth: 'none' }, async (req, ctx) => {
     return Response.json({ error: sessionErr.message }, { status: 500 })
   }
 
+  // Allowed columns in public.study_records to prevent schema cache errors
+  const ALLOWED_RECORD_COLUMNS = new Set([
+    'session_id', 'mode', 'task_id', 'benchmark_ordinal', 'sample_id',
+    'method', 'method_key', 'method_code', 'completion_state',
+    'source_svg_sha256', 'input_sha256', 'source_path', 'attempt',
+    'submitted_at', 'elapsed_seconds', 'stop_reason', 'success',
+    'original_anchor_count', 'final_anchor_count', 'initial_path',
+    'edited_path', 'target_path', 'operations'
+  ])
+
+  const sanitize = (r: any) => {
+    const clean: any = {}
+    for (const key of Object.keys(r)) {
+      if (ALLOWED_RECORD_COLUMNS.has(key)) {
+        clean[key] = r[key]
+      }
+    }
+    return clean
+  }
+
   // Insert one record or a batch
   const toInsert = records
-    ? records.map((r: any) => ({ ...r, session_id }))
+    ? records.map((r: any) => sanitize({ ...r, session_id }))
     : record
-      ? [{ ...record, session_id }]
+      ? [sanitize({ ...record, session_id })]
       : null
 
   if (!toInsert || toInsert.length === 0) {

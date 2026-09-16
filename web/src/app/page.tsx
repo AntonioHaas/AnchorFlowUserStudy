@@ -36,7 +36,7 @@ const TRANSLATIONS = {
     feedbackThanks: '✓ Vielen Dank für Ihr Feedback!',
     totalEdits: 'Bearbeitungen',
     totalTime: 'Gesamtzeit',
-    avgAccuracy: 'Ø Genauigkeit',
+    avgTimePerOption: 'Ø Zeit / Variante',
   },
   en: {
     title: 'Shape Editing Study',
@@ -62,7 +62,7 @@ const TRANSLATIONS = {
     feedbackThanks: '✓ Thank you for your feedback!',
     totalEdits: 'Edits',
     totalTime: 'Total time',
-    avgAccuracy: 'Avg accuracy',
+    avgTimePerOption: 'Avg time / option',
   }
 }
 
@@ -147,22 +147,17 @@ export default function StudyPage() {
   )
   const isStepComplete = currentStepResults.length >= methods.length
 
-  // Stats for the current task (only after tutorial)
+  // Stats for the current task
   const taskAvgTime = currentStepResults.length > 0
     ? (currentStepResults.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0) / currentStepResults.length).toFixed(1)
     : '0'
-  const stepAccs = currentStepResults.filter(r => typeof r.accuracy === 'number')
-  const taskAvgAcc = stepAccs.length > 0
-    ? Math.round(stepAccs.reduce((acc, r) => acc + r.accuracy, 0) / stepAccs.length)
-    : null
 
   // Overall study stats for completion screen
   const formalResults = results.filter(r => r.mode === 'clean2400_editing_pilot')
   const totalStudyTime = formalResults.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0)
-  const formalAccs = formalResults.filter(r => typeof r.accuracy === 'number')
-  const overallAvgAcc = formalAccs.length > 0
-    ? Math.round(formalAccs.reduce((acc, r) => acc + r.accuracy, 0) / formalAccs.length)
-    : null
+  const avgTimePerOption = formalResults.length > 0
+    ? (totalStudyTime / formalResults.length).toFixed(1)
+    : '0'
 
   const handleComplete = async (methodKey: string, data: any) => {
     // Release active editor
@@ -202,8 +197,10 @@ export default function StudyPage() {
       initial_path: data.initial_path || methodSrc?.d || '',
       edited_path: data.edited_path || '',
       target_path: currentTask?.after || '',
-      accuracy: data.accuracy,
-      operations: data.operations || [],
+      operations: [
+        ...(data.operations || []),
+        ...(data.accuracy !== undefined ? [{ type: 'accuracy_score', accuracy: data.accuracy }] : [])
+      ],
     }
 
     setResults(prev => [...prev, record])
@@ -391,8 +388,8 @@ export default function StudyPage() {
                     <span className="text-sm font-semibold mt-0.5">{Math.round(totalStudyTime)}s</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-muted-foreground uppercase">{t.avgAccuracy}</span>
-                    <span className="text-sm font-semibold mt-0.5">{overallAvgAcc !== null ? `${overallAvgAcc}%` : '-'}</span>
+                    <span className="text-[11px] text-muted-foreground uppercase">{t.avgTimePerOption}</span>
+                    <span className="text-sm font-semibold mt-0.5">{avgTimePerOption}s</span>
                   </div>
                 </div>
 
@@ -473,7 +470,30 @@ export default function StudyPage() {
           )}
         </div>
 
-        {/* Post-tutorial task completion feedback banner */}
+        {/* Practice task completion banner */}
+        {phase === 'practice' && isStepComplete && (
+          <div className="bg-card border border-primary/30 rounded-lg p-2.5 px-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+              <div>
+                <span className="text-sm font-semibold">
+                  {lang === 'de' ? 'Übungsaufgabe abgeschlossen!' : 'Practice task completed!'}
+                </span>
+                <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
+                  {lang === 'de'
+                    ? 'Sie haben die Steuerung erfolgreich ausprobiert. Klicken Sie auf "Weiter", um die Studie zu starten.'
+                    : 'You have tested the editing controls. Click "Next" to start the study.'}
+                </span>
+              </div>
+            </div>
+            <Button size="sm" onClick={handleNext} className="h-8 text-xs font-semibold px-4 shrink-0">
+              {t.next}
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Study task completion banner (no score evaluation during formal study) */}
         {phase === 'study' && isStepComplete && (
           <div className="bg-card border border-primary/30 rounded-lg p-2.5 px-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center gap-2.5">
@@ -486,8 +506,8 @@ export default function StudyPage() {
                 </span>
                 <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
                   {lang === 'de'
-                    ? 'Alle 4 Varianten wurden erfolgreich bearbeitet.'
-                    : 'All 4 options have been completed.'}
+                    ? 'Alle 4 Varianten wurden bearbeitet. Klicken Sie auf "Weiter".'
+                    : 'All 4 options have been completed. Click "Next" to proceed.'}
                 </span>
               </div>
             </div>
@@ -495,11 +515,10 @@ export default function StudyPage() {
               <Badge variant="outline" className="font-mono text-xs">
                 ⏱️ {lang === 'de' ? 'Ø Zeit' : 'Avg time'}: {taskAvgTime}s
               </Badge>
-              {taskAvgAcc !== null && (
-                <Badge variant="default" className="font-mono text-xs">
-                  🎯 {lang === 'de' ? 'Ø Genauigkeit' : 'Avg match'}: {taskAvgAcc}%
-                </Badge>
-              )}
+              <Button size="sm" onClick={handleNext} className="h-8 text-xs font-semibold px-4">
+                {t.next}
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         )}
