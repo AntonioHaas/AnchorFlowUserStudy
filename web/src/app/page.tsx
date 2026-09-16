@@ -29,7 +29,9 @@ const TRANSLATIONS = {
     doneTitle: 'Studie abgeschlossen',
     doneDesc: 'Vielen Dank für Ihre Teilnahme.',
     doneMsg: 'Ihre Ergebnisse wurden erfolgreich und sicher übermittelt. Sie können dieses Fenster nun schließen.',
-    mustComplete: 'Bitte bearbeiten Sie alle Varianten, bevor Sie fortfahren.'
+    mustComplete: 'Bitte bearbeiten Sie alle Varianten, bevor Sie fortfahren.',
+    mobileBlockerTitle: 'Desktop-Browser Erforderlich',
+    mobileBlockerDesc: 'Diese Studie erfordert präzise Maus-Eingaben für die Vektorbearbeitung. Bitte verwenden Sie einen Computer (PC oder Mac), um teilzunehmen.'
   },
   en: {
     title: 'Shape Editing Study',
@@ -48,7 +50,9 @@ const TRANSLATIONS = {
     doneTitle: 'Study Complete',
     doneDesc: 'Thank you for your participation.',
     doneMsg: 'Your results have been successfully and securely submitted. You may now close this window.',
-    mustComplete: 'Please complete all variants before proceeding.'
+    mustComplete: 'Please complete all variants before proceeding.',
+    mobileBlockerTitle: 'Desktop Browser Required',
+    mobileBlockerDesc: 'This study requires precise mouse inputs for vector editing. Please use a computer (PC or Mac) to participate.'
   }
 }
 
@@ -58,6 +62,21 @@ export default function StudyPage() {
   const [results, setResults] = useState<any[]>([])
   const [sessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : '')
   const [lang, setLang] = useState<Language>('de')
+  const [isMobile, setIsMobile] = useState(false)
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      const ua = navigator.userAgent
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth < 768) {
+        setIsMobile(true)
+      } else {
+        setIsMobile(false)
+      }
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const t = TRANSLATIONS[lang]
 
@@ -198,20 +217,32 @@ export default function StudyPage() {
       <div className="min-h-screen p-2 md:p-4 bg-muted/20">
         <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
           <TopNav />
-          <div className="flex-1 flex items-center justify-center">
-            <Card className="max-w-lg shadow-md">
-              <CardHeader>
-                <CardTitle>{t.landingTitle}</CardTitle>
+          <div className="flex items-center justify-center min-h-[85vh]">
+            <Card className="w-full max-w-2xl mx-4">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-3xl font-bold">{t.landingTitle}</CardTitle>
+                <CardDescription className="text-lg mt-2">
+                  {lang === 'de' ? 'Vector Shape Editing' : 'Vector Shape Editing'}
+                </CardDescription>
               </CardHeader>
-              <Separator />
-              <CardContent className="pt-6 space-y-4 text-sm text-muted-foreground">
-                <p>{t.landingP1}</p>
-                <p>{t.landingP2}</p>
-                <div className="pt-4">
-                  <Button className="w-full" size="lg" onClick={() => setPhase('practice')}>
-                    {t.landingStart} <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
+              <CardContent className="pt-6">
+                {isMobile ? (
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-destructive/10 rounded-lg border border-destructive/20 text-destructive mb-8">
+                    <Info className="w-12 h-12 mb-4 opacity-80" />
+                    <h3 className="text-xl font-bold mb-2">{t.mobileBlockerTitle}</h3>
+                    <p className="max-w-md">{t.mobileBlockerDesc}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6 text-lg text-muted-foreground">
+                    <p>{t.landingP1}</p>
+                    <p>{t.landingP2}</p>
+                    <div className="flex justify-center pt-4">
+                      <Button size="lg" onClick={() => setPhase('practice')} className="px-12 text-lg h-14">
+                        {t.landingStart}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -331,7 +331,7 @@ export default function CanvasEditor({
     if (!running || submitted) return
     setState((prev: any) => {
       if (!prev.history.length) return prev
-      const s = clone(prev)
+      const s = { ...prev, future: [...prev.future], history: [...prev.history], operations: [...prev.operations] }
       s.future.push({ graph: clone(prev.graph), selected: [...prev.selected] })
       const v = s.history.pop()
       s.graph = v.graph
@@ -346,7 +346,7 @@ export default function CanvasEditor({
     if (!running || submitted) return
     setState((prev: any) => {
       if (!prev.future.length) return prev
-      const s = clone(prev)
+      const s = { ...prev, future: [...prev.future], history: [...prev.history], operations: [...prev.operations] }
       s.history.push({ graph: clone(prev.graph), selected: [...prev.selected] })
       const v = s.future.pop()
       s.graph = v.graph
@@ -361,13 +361,16 @@ export default function CanvasEditor({
     if (!running || submitted) return
     setState((prev: any) => {
       if (!prev.selected.size || prev.graph.nodes.length <= 2) return prev
-      const s = clone(prev)
+      const s = { ...prev, future: [], history: [...prev.history], operations: [...prev.operations] }
       s.history.push({ graph: clone(prev.graph), selected: [...prev.selected] })
-      s.future = []
       const timeLimit = isPractice ? 120 : 90
       s.operations.push({ type: 'delete_anchor', elapsed_seconds: +(timeLimit - remainingTime).toFixed(3) })
       let next = 0
-      for (const n of [...s.selected].sort((a: number, b: number) => b - a)) {
+      
+      // Need to clone the graph before mutating it with Geometry.remove
+      s.graph = clone(prev.graph)
+      
+      for (const n of [...prev.selected].sort((a: number, b: number) => b - a)) {
         next = Geometry.remove(s.graph, n)
       }
       s.selected = new Set([next])
