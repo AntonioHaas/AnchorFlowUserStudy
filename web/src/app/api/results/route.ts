@@ -8,6 +8,21 @@ import { withSupabase } from '@supabase/server'
  * The secret key stays server-side; ctx.supabaseAdmin bypasses RLS.
  */
 const handler = withSupabase({ auth: 'none' }, async (req, ctx) => {
+  // Basic anti-bot & CORS protection: enforce Origin / Referer
+  // (In production, you should add your Netlify domain to this check)
+  const origin = req.headers.get('origin')
+  const referer = req.headers.get('referer')
+  
+  const isLocal = (url: string | null) => url?.includes('localhost:') || url?.includes('127.0.0.1:')
+  const isNetlify = (url: string | null) => url?.includes('.netlify.app')
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!isLocal(origin) && !isNetlify(origin) && !isLocal(referer) && !isNetlify(referer)) {
+      console.warn(`Blocked suspicious request. Origin: ${origin}, Referer: ${referer}`)
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
   const body = await req.json()
   const { session_id, schema, record, records } = body
 

@@ -16,7 +16,29 @@ export default function CanvasEditor({
   method,
   isPractice,
   onComplete,
+  lang = 'de'
 }: any) {
+  const TRANSLATIONS = {
+    de: {
+      start: 'Starten',
+      resume: 'Fortsetzen',
+      pause: 'Pause',
+      done: 'Fertig',
+      giveUp: 'Aufgeben',
+      completed: 'Abgeschlossen',
+      paused: 'Pausiert',
+    },
+    en: {
+      start: 'Start',
+      resume: 'Resume',
+      pause: 'Pause',
+      done: 'Done',
+      giveUp: 'Give Up',
+      completed: 'Completed',
+      paused: 'Paused',
+    }
+  }
+  const t = (TRANSLATIONS as any)[lang]
   const svgRef = useRef<SVGSVGElement>(null)
 
   const [state, setState] = useState(() => {
@@ -142,6 +164,7 @@ export default function CanvasEditor({
     }
 
     const onPointerDown = (e: any) => {
+      if (!running || submitted) return
       if (e.button !== 0 && e.button !== 1) return
       svg!.focus({ preventScroll: true })
       if (space || e.button === 1) {
@@ -207,6 +230,7 @@ export default function CanvasEditor({
     const onPointerUp = () => { s.drag = null; setState({ ...s }) }
     const onWheel = (e: any) => {
       e.preventDefault()
+      if (!running || submitted) return
       if (s.drag) return
       const p = point(e), factor = e.deltaY > 0 ? 1.12 : 1 / 1.12
       const w = Math.max(35, Math.min(900, s.view.w * factor)), ratio = w / s.view.w
@@ -246,21 +270,22 @@ export default function CanvasEditor({
   const handleFinish = (reason: string) => {
     setRunning(false)
     setSubmitted(true)
+    const timeLimit = isPractice ? 120 : 90
     onComplete(method.key, {
       method: method.label,
       method_key: method.key,
-      completion_state: 'completed',
+      completion_state: reason === 'time_up' ? 'timeout' : reason === 'gave_up' ? 'abandoned' : 'completed',
+      elapsed_seconds: timeLimit - remainingTime,
       stop_reason: reason,
-      elapsed_seconds: 90 - remainingTime,
-      final_anchor_count: state.graph.nodes.length,
-      original_anchor_count: task.predictions[method.key].original_anchor_count,
+      original_anchor_count: isPractice ? state.initial.nodes.length : (task.predictions[method.key]?.original_anchor_count || state.initial.nodes.length),
+      final_anchor_count: state.graph.nodes.length
     })
   }
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${m}:${sec.toString().padStart(2, '0')}`
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   return (
@@ -272,19 +297,21 @@ export default function CanvasEditor({
           className="font-mono text-xs"
         >
           {submitted
-            ? 'Abgeschlossen'
+            ? t.completed
             : running
               ? formatTime(remainingTime)
-              : 'Pausiert'}
+              : t.paused}
         </Badge>
       </CardHeader>
       <Separator />
-      <CardContent className="p-0 flex-1">
-        <div className="relative aspect-square w-full overflow-hidden">
+      <CardContent className="p-0 flex-1 bg-muted/10 flex items-center justify-center min-h-0 overflow-hidden">
+        <div className="relative aspect-square h-full max-h-[500px] w-full max-w-[500px] overflow-hidden m-2 border rounded-md shadow-sm bg-background">
           <svg
             ref={svgRef}
             className="w-full h-full outline-none cursor-crosshair"
             tabIndex={0}
+            role="application"
+            aria-label={lang === 'de' ? `Bearbeitungsfläche für ${method.label}` : `Editing canvas for ${method.label}`}
           />
         </div>
       </CardContent>
@@ -296,7 +323,7 @@ export default function CanvasEditor({
         {!running && !submitted && (
           <Button size="sm" onClick={() => setRunning(true)} className="w-full">
             <Play className="mr-1.5 h-3.5 w-3.5" />
-            {remainingTime === 90 ? 'Starten / Start' : 'Fortsetzen / Resume'}
+            {remainingTime === (isPractice ? 120 : 90) ? t.start : t.resume}
           </Button>
         )}
         
@@ -304,16 +331,16 @@ export default function CanvasEditor({
           <>
             <Button size="sm" variant="outline" onClick={() => setRunning(false)}>
               <Pause className="mr-1.5 h-3.5 w-3.5" />
-              Pause
+              {t.pause}
             </Button>
             <div className="flex-1" />
             <Button size="sm" variant="outline" onClick={() => handleFinish('participant_finished')}>
               <Check className="mr-1.5 h-3.5 w-3.5" />
-              Fertig / Done
+              {t.done}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => handleFinish('gave_up')} className="text-muted-foreground">
               <X className="mr-1.5 h-3.5 w-3.5" />
-              Aufgeben
+              {t.giveUp}
             </Button>
           </>
         )}
@@ -322,7 +349,7 @@ export default function CanvasEditor({
           <div className="w-full flex items-center justify-center">
             <Badge variant="secondary" className="text-xs">
               <Check className="mr-1 h-3 w-3" />
-              Abgeschlossen / Done
+              {t.completed}
             </Badge>
           </div>
         )}
