@@ -22,7 +22,7 @@ const TRANSLATIONS = {
     overallProgress: 'Gesamtfortschritt',
     landingTitle: 'Willkommen zur Formbearbeitungsstudie',
     landingP1: 'In dieser Studie werden Sie Vektorgrafiken (SVGs) bearbeiten. Ihnen wird jeweils ein Ziel (gestrichelte Linie) angezeigt, und Sie sollen versuchen, die vorgegebene Form mit den zur Verfügung stehenden Werkzeugen so gut wie möglich nachzubilden.',
-    landingP2: 'Sie beginnen mit einer kurzen Übungsphase, gefolgt von den 3 Aufgaben mit jeweils 4 Varianten.',
+    landingP2: 'Sie beginnen mit einer kurzen Übungsphase, gefolgt von den 4 Aufgaben mit jeweils 3 Varianten.',
     landingStart: 'Studie beginnen',
     doneTitle: 'Studie abgeschlossen',
     doneDesc: 'Vielen Dank für Ihre Teilnahme.',
@@ -48,7 +48,7 @@ const TRANSLATIONS = {
     overallProgress: 'Overall progress',
     landingTitle: 'Welcome to the Shape Editing Study',
     landingP1: 'In this study, you will edit vector graphics (SVGs). You will be shown a target (dashed outline), and you should try to recreate the shape as closely as possible using the provided tools.',
-    landingP2: 'You will begin with a short practice phase, followed by the 3 tasks with 4 options each.',
+    landingP2: 'You will begin with a short practice phase, followed by the 4 tasks with 3 options each.',
     landingStart: 'Start Study',
     doneTitle: 'Study Complete',
     doneDesc: 'Thank you for your participation.',
@@ -66,9 +66,9 @@ const TRANSLATIONS = {
   }
 }
 
-const ALL_METHOD_KEYS = ['ours', 'adavec', 'vtracer', 'live'] as const
+const ALL_METHOD_KEYS = ['ours', 'adavec', 'live'] as const
 type MethodKey = typeof ALL_METHOD_KEYS[number]
-const SLOT_LETTERS = ['A', 'B', 'C', 'D'] as const
+const SLOT_LETTERS = ['A', 'B', 'C'] as const
 
 function shuffleArray<T>(array: readonly T[]): T[] {
   const arr = [...array]
@@ -124,7 +124,7 @@ export default function StudyPage() {
     ? tasksData.practice[index] 
     : (phase === 'study' ? tasksData.formal[index] : null)
   
-  // In study phase, map randomized method keys to presentation slots A, B, C, D
+  // In study phase, map randomized method keys to presentation slots A, B, C
   const methods = phase === 'practice'
     ? [{ key: 'practice', label: t.practice, short: 'P' }]
     : (taskMethodOrders[index] || ALL_METHOD_KEYS).map((key, slotIdx) => {
@@ -136,7 +136,7 @@ export default function StudyPage() {
         }
       })
 
-  const totalFormalTasks = tasksData.formal.length * 4
+  const totalFormalTasks = tasksData.formal.length * ALL_METHOD_KEYS.length
   const completedFormalMethods = results.filter(r => r.mode === 'clean2400_editing_pilot').length
   const progressValue = phase === 'practice' ? 0 : (completedFormalMethods / totalFormalTasks) * 100
 
@@ -169,7 +169,6 @@ export default function StudyPage() {
     const actualMethodName = methodSrc?.method || (
       methodKey === 'ours' ? 'Ours' :
       methodKey === 'adavec' ? 'AdaVec' :
-      methodKey === 'vtracer' ? 'VTracer' :
       methodKey === 'live' ? 'LIVE' : (data.method || methodKey)
     )
 
@@ -180,9 +179,9 @@ export default function StudyPage() {
       task_id: currentTask.id,
       benchmark_ordinal: currentTask.benchmark_ordinal || 0,
       sample_id: currentTask.sample_id || null,
-      method: actualMethodName, // Always TRUE native method name: 'Ours', 'AdaVec', 'VTracer', 'LIVE'
-      method_key: methodKey,    // Always TRUE native method key: 'ours', 'adavec', 'vtracer', 'live'
-      method_code: displayedSlot, // 'A', 'B', 'C', or 'D' (slot presented to user for this task)
+      method: actualMethodName, // Always TRUE native method name: 'Ours', 'AdaVec', 'LIVE'
+      method_key: methodKey,    // Always TRUE native method key: 'ours', 'adavec', 'live'
+      method_code: displayedSlot, // 'A', 'B', or 'C' (slot presented to user for this task)
       completion_state: data.completion_state,
       source_svg_sha256: methodSrc?.sha256 || '',
       input_sha256: currentTask?.input_sha256 || '',
@@ -435,7 +434,7 @@ export default function StudyPage() {
       <div className="max-w-[1700px] mx-auto flex flex-col gap-3 h-[calc(100vh-5rem)]">
         <TopNav />
 
-        {/* Editor canvases - 4 columns in study phase, 1 centered in practice */}
+        {/* Editor canvases - 3 columns in study phase, 1 centered in practice */}
         <div className="flex-1 min-h-0">
           {phase === 'practice' ? (
             <div className="flex justify-center h-full max-w-xl mx-auto">
@@ -452,7 +451,7 @@ export default function StudyPage() {
               />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 h-full min-w-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 h-full min-w-0">
               {methods.map(m => (
                 <CanvasEditor
                   key={m.key + index + phase}
@@ -506,8 +505,8 @@ export default function StudyPage() {
                 </span>
                 <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
                   {lang === 'de'
-                    ? 'Alle 4 Varianten wurden bearbeitet. Klicken Sie auf "Weiter".'
-                    : 'All 4 options have been completed. Click "Next" to proceed.'}
+                    ? 'Alle 3 Varianten wurden bearbeitet. Klicken Sie auf "Weiter".'
+                    : 'All 3 options have been completed. Click "Next" to proceed.'}
                 </span>
               </div>
             </div>

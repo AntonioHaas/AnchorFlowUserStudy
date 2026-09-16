@@ -1,0 +1,47 @@
+{
+  "status": "native_outputs_reused_not_new_inference",
+  "benchmark": "clean singlepath2400",
+  "task_id": "B0003",
+  "benchmark_ordinal": 3,
+  "sample_id": "colorsvg_b401f78c42cb0c2d4555",
+  "input_sha256": "97b4a39697c262f2528ec42402fa24434c35f18fef7f3949cd332a0509053978",
+  "selection": "Input-shape selection for a curvature-control task, before inspecting comparative method quality; approved fourth-task target was authored separately. Not a random or representative sample.",
+  "source_attribution": {
+    "source": "colorsvg",
+    "source_url": "https://github.com/amcghm/ColorSVG-100K",
+    "license_id": "CC-BY-NC-SA-4.0",
+    "source_asset_id": "val:286",
+    "source_file": "source_assets/colorsvg_b401f78c42cb0c2d4555.svg",
+    "source_svg_or_glif_sha256": "d40072262f2c57b71fa3da0a98b1ad2cee0bf84a753462ecb03313304291afc2"
+  },
+  "target": {
+    "reference_anchors_unchanged": true,
+    "modified_reference_edge": 1,
+    "modified_control_points": 2,
+    "generated_before_output_import": true,
+    "used_for_model_tuning": false
+  },
+  "sources": {
+    "ours": {
+      "source_path": "experiments/a03_df_fixed240_20260911/full240/merged/pilot004/merged.svg",
+      "protocol": "Frozen a04d best59 + best52, bounded merge; reused fixed240 result"
+    },
+    "adavec": {
+      "source_path": "experiments/path240_pilot_20260907/single_region/case_003/full_opt.svg",
+      "protocol": "Existing single-region benchmark adapter, 200 point iterations + 101 shape updates",
+      "source_rgb_sha256": "09f41e92855619e3fe8763287cfbe4a8ed060496ad0afd91744d0f83cdf75ce8",
+      "source_rgb_pixels_equal_common_input": true
+    },
+    "live": {
+      "source_path": "experiments/diffvg_live240_20260909/full2400/evaluation/iter500/0003/output.svg",
+      "protocol": "Existing LIVE 1 path x 16 segments, 500 iterations"
+    }
+  },
+  "files": {
+    "reference.svg": "70545122fdbeb554a93f622f7dc68083921ea83f82d1eca85f262c2ed542015a",
+    "live.svg": "44f7032165042befc422eba9e623fe801a08337e061f5edd878c80ab3d7a1723",
+    "input.png": "97b4a39697c262f2528ec42402fa24434c35f18fef7f3949cd332a0509053978",
+    "ours.svg": "8fdcee9512987078b8d90b5cbf4618ec0fe88f6d808fc2ac335119481521cf02",
+    "adavec.svg": "00890122cef25ef18993c3584684bd0204f3833e1856670f371ebd9e09b52213"
+  }
+}
