@@ -2,7 +2,6 @@
 import React, { useState } from 'react'
 import tasksData from '@/lib/tasks.json'
 import CanvasEditor from '@/components/CanvasEditor'
-import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
@@ -11,6 +10,7 @@ export default function App() {
   const [phase, setPhase] = useState<'practice' | 'study' | 'done'>('practice')
   const [index, setIndex] = useState(0)
   const [results, setResults] = useState<any[]>([])
+  const [sessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : '')
   
   const currentTask: any = phase === 'practice' ? tasksData.practice[index] : tasksData.formal[index]
   const methods = phase === 'practice' ? [{ key: 'practice', label: 'Practice', short: 'P' }] : [
@@ -21,31 +21,48 @@ export default function App() {
   const totalFormalTasks = tasksData.formal.length * 2
   const progressValue = phase === 'practice' ? 0 : ((index * 2) / totalFormalTasks) * 100
 
-  const handleComplete = (methodKey: string, data: any) => {
-    setResults(prev => {
-      const newResults = [...prev]
-      newResults.push({
-        mode: phase === 'practice' ? 'practice_pilot' : 'clean2400_editing_pilot',
-        task_id: currentTask.id,
-        benchmark_ordinal: 0,
-        sample_id: currentTask.sample_id,
-        method: data.method,
-        method_key: data.method_key,
-        method_code: data.method_key === 'ours' ? 'A' : 'B',
-        completion_state: data.completion_state,
-        source_svg_sha256: currentTask.predictions[methodKey]?.sha256 || '',
-        input_sha256: currentTask.sha256 || '',
-        source_path: currentTask.predictions[methodKey]?.relative_path || '',
-        attempt: 1,
-        submitted_at: new Date().toISOString(),
-        elapsed_seconds: data.elapsed_seconds,
-        stop_reason: data.stop_reason,
-        success: data.completion_state === 'completed',
-        original_anchor_count: data.original_anchor_count,
-        final_anchor_count: data.final_anchor_count,
+  const handleComplete = async (methodKey: string, data: any) => {
+    const record = {
+      mode: phase === 'practice' ? 'practice_pilot' : 'clean2400_editing_pilot',
+      task_id: currentTask.id,
+      benchmark_ordinal: 0,
+      sample_id: currentTask.sample_id,
+      method: data.method,
+      method_key: data.method_key,
+      method_code: data.method_key === 'ours' ? 'A' : 'B',
+      completion_state: data.completion_state,
+      source_svg_sha256: currentTask.predictions[methodKey]?.sha256 || '',
+      input_sha256: currentTask.sha256 || '',
+      source_path: currentTask.predictions[methodKey]?.relative_path || '',
+      attempt: 1,
+      submitted_at: new Date().toISOString(),
+      elapsed_seconds: data.elapsed_seconds,
+      stop_reason: data.stop_reason,
+      success: data.completion_state === 'completed',
+      original_anchor_count: data.original_anchor_count,
+      final_anchor_count: data.final_anchor_count,
+    }
+
+    setResults(prev => [...prev, record])
+
+    // Save intermittently via server API route (no Supabase client in browser)
+    try {
+      const res = await fetch('/api/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          schema: 'anchorflow-benchmark2400-editor-v1',
+          record,
+        }),
       })
-      return newResults
-    })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error('Save error:', err)
+      }
+    } catch (err) {
+      console.error('Network error saving result:', err)
+    }
   }
 
   const handleNext = () => {
@@ -67,37 +84,16 @@ export default function App() {
   }
 
   const submitResults = async () => {
-    const session_id = crypto.randomUUID()
-    const sb = supabase as any
-    const { data: session, error: err1 } = await sb.from('study_sessions').insert({
-      id: session_id,
-      schema: 'anchorflow-benchmark2400-editor-v1'
-    }).select().single()
-
-    if (err1) {
-      console.error('Supabase error', err1)
-    }
-
-    const records = results.map(r => ({
-      ...r,
-      session_id
-    }))
-
-    const { error: err2 } = await sb.from('study_records').insert(records)
-    if (err2) {
-      console.error('Records insert error', err2)
-    }
-    
-    // Also trigger standard JSON download to comply with checklist fallback requirement
+    // Intermittent saving is already done. Trigger standard JSON download to comply with checklist fallback requirement
     const blob = new Blob([JSON.stringify({
       schema: 'anchorflow-benchmark2400-editor-v1',
-      study_session_id: session_id,
+      study_session_id: sessionId,
       records
     }, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `shape-edit-${session_id}-${Date.now()}.json`
+    a.download = `shape-edit-${sessionId}-${Date.now()}.json`
     a.click()
   }
 
