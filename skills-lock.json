@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "netlify-deploy": {
+      "source": "netlify/context-and-tools",
+      "sourceType": "github",
+      "skillPath": "skills/netlify-deploy/SKILL.md",
+      "computedHash": "22b41fbde33d8b9bdd695b1ee9d7e8a4811f0b8ba83293927a24a398a72c785f"
+    },
     "security-review": {
       "source": "getsentry/skills",
       "sourceType": "github",
