@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react'
 import Geometry from '@/lib/geometry'
+import { computeMatchScore } from '@/lib/score'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +15,10 @@ function clone(x: any) {
 export default function CanvasEditor({
   task,
   method,
-  isPractice,
+  isPractice = false,
+  isActive = false,
+  onActivate,
+  onPause,
   onComplete,
   lang = 'de'
 }: any) {
@@ -64,10 +68,111 @@ export default function CanvasEditor({
     }
   })
 
-  const [running, setRunning] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const prevIsActiveRef = useRef(false)
   const [submitted, setSubmitted] = useState(false)
   const [remainingTime, setRemainingTime] = useState(isPractice ? 120 : 90)
+  const [feedback, setFeedback] = useState<{ accuracy: number, avgDist: number, elapsed: number, reason: string } | null>(null)
 
+  // Track activation transitions: automatically log start, resume, or auto_pause_switch
+  useEffect(() => {
+    if (prevIsActiveRef.current === isActive) return
+    const wasActive = prevIsActiveRef.current
+    prevIsActiveRef.current = isActive
+
+    const timeLimit = isPractice ? 120 : 90
+    const elapsed = +(timeLimit - remainingTime).toFixed(3)
+
+    if (isActive && !wasActive && !submitted) {
+      const rect = svgRef.current?.getBoundingClientRect()
+      setState((prev: any) => {
+        const ops = [...prev.operations]
+        if (!hasStarted) {
+          if (rect) {
+            ops.push({
+              type: 'canvas_meta',
+              elapsed_seconds: elapsed,
+              canvas_width: rect.width,
+              canvas_height: rect.height,
+            })
+          }
+          ops.push({ type: 'start', elapsed_seconds: elapsed })
+        } else {
+          ops.push({ type: 'resume', elapsed_seconds: elapsed })
+        }
+        return { ...prev, operations: ops }
+      })
+      if (!hasStarted) setHasStarted(true)
+    } else if (!isActive && wasActive && !submitted) {
+      setState((prev: any) => ({
+        ...prev,
+        operations: [...prev.operations, { type: 'auto_pause_switch', elapsed_seconds: elapsed }]
+      }))
+    }
+  }, [isActive, submitted, remainingTime, hasStarted, isPractice])
+
+  // Single active countdown timer
+  useEffect(() => {
+    let timer: any = null
+    if (isActive && !submitted && remainingTime > 0) {
+      timer = setInterval(() => {
+        setRemainingTime(r => {
+          if (r <= 1) {
+            return 0
+          }
+          return r - 1
+        })
+      }, 1000)
+    } else if (remainingTime === 0 && isActive && !submitted) {
+      handleFinish('timeout')
+    }
+    return () => clearInterval(timer)
+  }, [isActive, submitted, remainingTime])
+
+  const handleFinish = (reason: string) => {
+    onPause?.()
+    setSubmitted(true)
+    const timeLimit = isPractice ? 120 : 90
+    const elapsedSeconds = +(timeLimit - remainingTime).toFixed(3)
+    const methodSrc = task.predictions?.[method.key]
+
+    // Only compute and provide performance feedback after the tutorial (in study phase)
+    let fb = null
+    if (!isPractice) {
+      const match = computeMatchScore(state.graph, task.after)
+      fb = {
+        accuracy: match.accuracy,
+        avgDist: match.avgDist,
+        elapsed: elapsedSeconds,
+        reason
+      }
+      setFeedback(fb)
+    }
+
+    onComplete(method.key, {
+      method: methodSrc?.method || method.key,
+      method_key: method.key,
+      method_code: method.short,
+      completion_state: reason === 'timeout' ? 'timeout' : reason === 'gave_up' ? 'abandoned' : 'completed',
+      elapsed_seconds: elapsedSeconds,
+      stop_reason: reason,
+      original_anchor_count: isPractice ? state.initial.nodes.length : (methodSrc?.original_anchor_count || state.initial.nodes.length),
+      final_anchor_count: state.graph.nodes.length,
+      initial_path: Geometry.path(state.initial),
+      edited_path: Geometry.path(state.graph),
+      accuracy: fb?.accuracy,
+      operations: [
+        ...state.operations,
+        {
+          type: reason === 'gave_up' ? 'participant_abandon' : 'participant_finish',
+          elapsed_seconds: elapsedSeconds,
+          ...(fb ? { accuracy: fb.accuracy, avg_distance: fb.avgDist } : {})
+        }
+      ]
+    })
+  }
+
+  // SVG interaction effect
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
@@ -110,7 +215,7 @@ export default function CanvasEditor({
       defs.appendChild(clip)
       svg!.appendChild(defs)
 
-      // Editable shape
+      // Editable shape background
       const pathBg = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       pathBg.setAttribute('d', Geometry.path(s.graph))
       pathBg.setAttribute('fill', '#dce8ef')
@@ -158,12 +263,14 @@ export default function CanvasEditor({
 
           const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
           circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-          circle.setAttribute('r', (2.8 * scale).toString())
-          circle.setAttribute('fill', '#b8904a')
+          circle.setAttribute('r', (2.7 * scale).toString())
+          circle.setAttribute('fill', '#e4a355')
           circle.setAttribute('stroke', 'white')
-          circle.setAttribute('stroke-width', (0.6 * scale).toString())
+          circle.setAttribute('stroke-width', (0.7 * scale).toString())
+          circle.setAttribute('class', 'handle')
           circle.setAttribute('data-edge', j.toString())
           circle.setAttribute('data-control', k)
+          circle.style.cursor = 'crosshair'
           svg!.appendChild(circle)
         }
       })
@@ -172,113 +279,146 @@ export default function CanvasEditor({
       s.graph.nodes.forEach((p: any, j: number) => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
         circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y)
-        circle.setAttribute('r', ((s.selected.has(j) ? 3.2 : 2.4) * scale).toString())
-        circle.setAttribute('fill', s.selected.has(j) ? '#1a5c82' : '#4a8ab0')
+        const isSel = s.selected.has(j)
+        circle.setAttribute('r', ((isSel ? 3.8 : 3.0) * scale).toString())
+        circle.setAttribute('fill', isSel ? '#165c88' : '#3989b6')
         circle.setAttribute('stroke', 'white')
-        circle.setAttribute('stroke-width', (0.7 * scale).toString())
+        circle.setAttribute('stroke-width', (0.8 * scale).toString())
+        circle.setAttribute('class', 'node')
         circle.setAttribute('data-node', j.toString())
+        circle.style.cursor = 'grab'
         svg!.appendChild(circle)
       })
     }
 
-    function point(e: any) {
+    draw()
+
+    function getPoint(e: PointerEvent) {
       const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg!.getScreenCTM()!.inverse())
       return { x: p.x, y: p.y }
     }
 
-    const onPointerDown = (e: any) => {
-      if (!running || submitted) return
+    const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0 && e.button !== 1) return
       svg!.focus({ preventScroll: true })
+
+      // Auto-activate this editor if not active
+      if (!isActive) {
+        if (!submitted) onActivate?.()
+        return
+      }
+
       if (space || e.button === 1) {
         e.preventDefault()
         s.drag = { pan: true, startX: e.clientX, startY: e.clientY, view: { ...s.view }, pointerId: e.pointerId }
         svg!.setPointerCapture(e.pointerId)
         return
       }
-      const n = e.target.dataset.node, edge = e.target.dataset.edge, segment = e.target.dataset.segment
+
+      const target = e.target as SVGElement
+      const nodeAttr = target.dataset.node
+      const edgeAttr = target.dataset.edge
+      const segAttr = target.dataset.segment
+
       if (s.adding) {
         e.preventDefault()
-        if (running && !submitted) {
-          s.graph = clone(s.graph)
-          const p = point(e)
-          let targetJ = segment !== undefined ? +segment : -1
-          let targetT = 0
-          
-          if (targetJ !== -1) {
-             targetT = Geometry.nearest(s.graph, targetJ, p)
-          } else {
-             let minDist = Infinity
-             for (let j = 0; j < s.graph.edges.length; j++) {
-               const t = Geometry.nearest(s.graph, j, p)
-               const c = Geometry.controls(s.graph, s.graph.edges[j])
-               const pt = Geometry.at(c, t)
-               const d = Math.hypot(pt.x - p.x, pt.y - p.y)
-               if (d < minDist) {
-                 minDist = d; targetJ = j; targetT = t
-               }
-             }
+        const pt = getPoint(e)
+        let edgeIdx = segAttr !== undefined ? +segAttr : 0
+        let bestDist = Infinity
+        for (let j = 0; j < s.graph.edges.length; j++) {
+          const tNear = Geometry.nearest(s.graph, j, pt)
+          const c = Geometry.controls(s.graph, s.graph.edges[j])
+          const proj = Geometry.at(c, tNear)
+          const d = Math.hypot(proj.x - pt.x, proj.y - pt.y)
+          if (d < bestDist) {
+            bestDist = d
+            edgeIdx = j
           }
-          
-          if (targetJ !== -1) {
-            remember('insert_anchor')
-            const next = Geometry.split(s.graph, targetJ, targetT)
-            if (segment === undefined) {
-              const dx = p.x - s.graph.nodes[next].x
-              const dy = p.y - s.graph.nodes[next].y
-              s.graph.nodes[next].x += dx
-              s.graph.nodes[next].y += dy
-              for (const ed of s.graph.edges) {
-                if (ed.c1 && ed.a === next) { ed.c1.x += dx; ed.c1.y += dy }
-                if (ed.c2 && ed.b === next) { ed.c2.x += dx; ed.c2.y += dy }
-              }
-            }
-            s.selected = new Set([next])
-            s.adding = false
-            setState({ ...s })
-            draw()
-          }
+        }
+        const tNear = Geometry.nearest(s.graph, edgeIdx, pt)
+        remember('insert_anchor')
+        const newAnchorIdx = Geometry.split(s.graph, edgeIdx, tNear)
+        const oldPt = s.graph.nodes[newAnchorIdx]
+        const dx = pt.x - oldPt.x, dy = pt.y - oldPt.y
+        s.graph.nodes[newAnchorIdx].x = pt.x
+        s.graph.nodes[newAnchorIdx].y = pt.y
+        for (const ed of s.graph.edges) {
+          if (ed.c1 && ed.a === newAnchorIdx) { ed.c1.x += dx; ed.c1.y += dy }
+          if (ed.c2 && ed.b === newAnchorIdx) { ed.c2.x += dx; ed.c2.y += dy }
+        }
+        s.selected = new Set([newAnchorIdx])
+        s.adding = false
+        setState((prev: any) => ({ ...prev, graph: s.graph, selected: s.selected, adding: false, operations: s.operations }))
+        draw()
+        return
+      }
+
+      if (segAttr !== undefined) return
+
+      if (nodeAttr === undefined && edgeAttr === undefined) {
+        if (!e.shiftKey) {
+          s.selected.clear()
+          setState((prev: any) => ({ ...prev, selected: new Set() }))
+          draw()
         }
         return
       }
-      if (segment !== undefined) return
-      if (n === undefined && edge === undefined) {
-        if (!e.shiftKey) { s.selected.clear(); draw() }
-        return
-      }
-      if (n !== undefined) {
-        const j = +n
+
+      if (nodeAttr !== undefined) {
+        const j = +nodeAttr
         if (e.shiftKey) {
-          if (s.selected.has(j)) s.selected.delete(j); else s.selected.add(j)
-          draw(); return
+          if (s.selected.has(j)) s.selected.delete(j)
+          else s.selected.add(j)
+        } else {
+          s.selected = new Set([j])
         }
-        if (!s.selected.has(j)) s.selected = new Set([j])
+        setState((prev: any) => ({ ...prev, selected: new Set(s.selected) }))
       }
+
       e.preventDefault()
-      s.drag = { node: n === undefined ? null : +n, edge: edge === undefined ? null : +edge, control: e.target.dataset.control, base: clone(s.graph), selection: [...s.selected], start: point(e), pointerId: e.pointerId, remembered: false }
+      s.drag = {
+        node: nodeAttr === undefined ? null : +nodeAttr,
+        edge: edgeAttr === undefined ? null : +edgeAttr,
+        control: target.dataset.control,
+        base: clone(s.graph),
+        selection: [...s.selected],
+        start: getPoint(e),
+        pointerId: e.pointerId,
+        remembered: false
+      }
       svg!.setPointerCapture(e.pointerId)
       draw()
     }
 
-    const onPointerMove = (e: any) => {
+    const onPointerMove = (e: PointerEvent) => {
       if (!s.drag || s.drag.pointerId !== e.pointerId) return
+
       if (s.drag.pan) {
         const scale = s.drag.view.w / svg!.getBoundingClientRect().width
-        s.view = { ...s.drag.view, x: s.drag.view.x - (e.clientX - s.drag.startX) * scale, y: s.drag.view.y - (e.clientY - s.drag.startY) * scale }
+        s.view = {
+          ...s.drag.view,
+          x: s.drag.view.x - (e.clientX - s.drag.startX) * scale,
+          y: s.drag.view.y - (e.clientY - s.drag.startY) * scale
+        }
         draw()
         return
       }
-      const p = point(e), dx = p.x - s.drag.start.x, dy = p.y - s.drag.start.y
+
+      const p = getPoint(e)
+      const dx = p.x - s.drag.start.x, dy = p.y - s.drag.start.y
+
       if (!s.drag.remembered) {
         if (Math.hypot(dx, dy) < 0.15) return
         remember(s.drag.node === null ? 'move_control' : 'move_anchor')
         s.drag.remembered = true
       }
+
       s.graph = clone(s.drag.base)
       if (s.drag.node !== null) {
         const set = new Set(s.drag.selection)
         for (const n of set as any) {
-          s.graph.nodes[n].x += dx; s.graph.nodes[n].y += dy
+          s.graph.nodes[n].x += dx
+          s.graph.nodes[n].y += dy
         }
         for (const ed of s.graph.edges) {
           if (ed.c1 && set.has(ed.a)) { ed.c1.x += dx; ed.c1.y += dy }
@@ -291,23 +431,55 @@ export default function CanvasEditor({
       draw()
     }
 
-    const onPointerUp = () => { s.drag = null; setState({ ...s }) }
-    const onWheel = (e: any) => {
+    const onPointerUp = () => {
+      if (s.drag && s.drag.remembered) {
+        setState((prev: any) => ({ ...prev, graph: s.graph, operations: s.operations }))
+      }
+      s.drag = null
+    }
+
+    const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      if (!running || submitted) return
       if (s.drag) return
-      
-      if (e.ctrlKey) {
-        // Zoom (Ctrl + Wheel or Trackpad Pinch)
-        const p = point(e), factor = e.deltaY > 0 ? 1.12 : 1 / 1.12
-        const w = Math.max(35, Math.min(900, s.view.w * factor)), ratio = w / s.view.w
-        s.view = { x: p.x - (p.x - s.view.x) * ratio, y: p.y - (p.y - s.view.y) * ratio, w, h: w }
-      } else {
-        // Pan (Trackpad Swipe or Mouse Wheel)
-        const scale = s.view.w / svg.getBoundingClientRect().width
-        s.view = { ...s.view, x: s.view.x + e.deltaX * scale, y: s.view.y + e.deltaY * scale }
+      const p = getPoint(e as any)
+
+      if (Math.abs(e.deltaX) > 0.1 && Math.abs(e.deltaY) < 10) {
+        const scale = s.view.w / svg!.getBoundingClientRect().width
+        s.view = {
+          ...s.view,
+          x: s.view.x + e.deltaX * scale,
+          y: s.view.y + e.deltaY * scale
+        }
+        draw()
+        return
+      }
+
+      const factor = e.deltaY > 0 ? 1.08 : 1 / 1.08
+      const w = Math.max(35, Math.min(900, s.view.w * factor))
+      const ratio = w / s.view.w
+      s.view = {
+        x: p.x - (p.x - s.view.x) * ratio,
+        y: p.y - (p.y - s.view.y) * ratio,
+        w,
+        h: w
       }
       draw()
+    }
+
+    const onDoubleClick = (e: MouseEvent) => {
+      if (!isActive || submitted) return
+      const target = e.target as SVGElement
+      const j = target.dataset.segment
+      if (j !== undefined) {
+        e.preventDefault()
+        const pt = getPoint(e as any)
+        const tNear = Geometry.nearest(s.graph, +j, pt)
+        remember('insert_anchor')
+        s.selected = new Set([Geometry.split(s.graph, +j, tNear)])
+        s.adding = false
+        setState((prev: any) => ({ ...prev, graph: s.graph, selected: s.selected, operations: s.operations }))
+        draw()
+      }
     }
 
     svg.addEventListener('pointerdown', onPointerDown)
@@ -315,24 +487,8 @@ export default function CanvasEditor({
     svg.addEventListener('pointerup', onPointerUp)
     svg.addEventListener('pointercancel', onPointerUp)
     svg.addEventListener('lostpointercapture', onPointerUp)
-    const onDoubleClick = (e: any) => {
-      const j = e.target.dataset.segment
-      if (j !== undefined && running && !submitted) {
-        e.preventDefault()
-        s.graph = clone(s.graph)
-        const t = Geometry.nearest(s.graph, +j, point(e))
-        remember('insert_anchor')
-        const next = Geometry.split(s.graph, +j, t)
-        s.selected = new Set([next])
-        s.adding = false
-        setState({ ...s })
-      }
-    }
-
     svg.addEventListener('wheel', onWheel, { passive: false })
     svg.addEventListener('dblclick', onDoubleClick)
-
-    draw()
 
     return () => {
       svg.removeEventListener('pointerdown', onPointerDown)
@@ -343,36 +499,10 @@ export default function CanvasEditor({
       svg.removeEventListener('wheel', onWheel)
       svg.removeEventListener('dblclick', onDoubleClick)
     }
-  }, [task, method, running, submitted, state])
-
-  useEffect(() => {
-    let timer: any
-    if (running && !submitted && remainingTime > 0) {
-      timer = setInterval(() => setRemainingTime(r => r - 1), 1000)
-    } else if (remainingTime === 0 && running && !submitted) {
-      handleFinish('timeout')
-    }
-    return () => clearInterval(timer)
-  }, [running, submitted, remainingTime])
-
-  const handleFinish = (reason: string) => {
-    setRunning(false)
-    setSubmitted(true)
-    const timeLimit = isPractice ? 120 : 90
-    onComplete(method.key, {
-      method: method.label,
-      method_key: method.key,
-      completion_state: reason === 'time_up' ? 'timeout' : reason === 'gave_up' ? 'abandoned' : 'completed',
-      elapsed_seconds: timeLimit - remainingTime,
-      stop_reason: reason,
-      original_anchor_count: isPractice ? state.initial.nodes.length : (task.predictions[method.key]?.original_anchor_count || state.initial.nodes.length),
-      final_anchor_count: state.graph.nodes.length,
-      operations: state.operations
-    })
-  }
+  }, [task, method, isActive, submitted, state])
 
   const handleUndo = () => {
-    if (!running || submitted) return
+    if (!isActive || submitted) return
     setState((prev: any) => {
       if (!prev.history.length) return prev
       const s = { ...prev, future: [...prev.future], history: [...prev.history], operations: [...prev.operations] }
@@ -387,7 +517,7 @@ export default function CanvasEditor({
   }
 
   const handleRedo = () => {
-    if (!running || submitted) return
+    if (!isActive || submitted) return
     setState((prev: any) => {
       if (!prev.future.length) return prev
       const s = { ...prev, future: [...prev.future], history: [...prev.history], operations: [...prev.operations] }
@@ -402,7 +532,7 @@ export default function CanvasEditor({
   }
 
   const handleRemove = () => {
-    if (!running || submitted) return
+    if (!isActive || submitted) return
     setState((prev: any) => {
       if (!prev.selected.size || prev.graph.nodes.length <= 2) return prev
       const s = { ...prev, future: [], history: [...prev.history], operations: [...prev.operations] }
@@ -410,10 +540,7 @@ export default function CanvasEditor({
       const timeLimit = isPractice ? 120 : 90
       s.operations.push({ type: 'delete_anchor', elapsed_seconds: +(timeLimit - remainingTime).toFixed(3) })
       let next = 0
-      
-      // Need to clone the graph before mutating it with Geometry.remove
       s.graph = clone(prev.graph)
-      
       for (const n of [...prev.selected].sort((a: number, b: number) => b - a)) {
         next = Geometry.remove(s.graph, n)
       }
@@ -423,7 +550,7 @@ export default function CanvasEditor({
   }
 
   const toggleAdding = () => {
-    if (!running || submitted) return
+    if (!isActive || submitted) return
     setState((prev: any) => ({ ...prev, adding: !prev.adding }))
   }
 
@@ -434,18 +561,27 @@ export default function CanvasEditor({
   }
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="py-2.5 px-4 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-medium">{method.label}</CardTitle>
+    <Card className={`flex flex-col h-full min-w-0 transition-all duration-200 ${
+      isActive && !submitted ? 'ring-2 ring-primary shadow-md border-primary/40' : ''
+    }`}>
+      <CardHeader className="py-2.5 px-3 flex flex-row items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-sm font-medium">{method.label}</CardTitle>
+          {isActive && !submitted && (
+            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" title="Aktiv / Active" />
+          )}
+        </div>
         <Badge
-          variant={submitted ? 'secondary' : remainingTime <= 10 ? 'destructive' : 'outline'}
+          variant={submitted ? 'secondary' : !isActive ? 'outline' : remainingTime <= 10 ? 'destructive' : 'default'}
           className="font-mono text-xs"
         >
           {submitted
             ? t.completed
-            : running
+            : isActive
               ? formatTime(remainingTime)
-              : t.paused}
+              : hasStarted
+                ? t.paused
+                : t.start}
         </Badge>
       </CardHeader>
       <Separator />
@@ -464,72 +600,92 @@ export default function CanvasEditor({
       <Separator />
       
       {/* Editor toolbar */}
-      <div className="flex flex-wrap items-center gap-2 p-2.5 bg-muted/10 border-b">
-        <Button size="sm" variant={state.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!running || submitted}>
+      <div className="flex flex-wrap items-center gap-1.5 p-2 bg-muted/10 border-b shrink-0">
+        <Button size="sm" variant={state.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-xs px-2">
           {t.addAnchor}
         </Button>
-        <Button size="sm" variant="outline" onClick={handleRemove} disabled={!state.selected.size || state.graph.nodes.length <= 2 || !running || submitted}>
+        <Button size="sm" variant="outline" onClick={handleRemove} disabled={!state.selected.size || state.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-xs px-2">
           {t.deleteAnchor}
         </Button>
-        <Button size="sm" variant="outline" onClick={handleUndo} disabled={!state.history.length || !running || submitted}>
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+        <Button size="sm" variant="outline" onClick={handleUndo} disabled={!state.history.length || !isActive || submitted} className="h-7 text-xs px-2">
+          <RotateCcw className="mr-1 h-3 w-3" />
           {t.undo}
         </Button>
-        <Button size="sm" variant="outline" onClick={handleRedo} disabled={!state.future.length || !running || submitted}>
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5 scale-x-[-1]" />
+        <Button size="sm" variant="outline" onClick={handleRedo} disabled={!state.future.length || !isActive || submitted} className="h-7 text-xs px-2">
+          <RotateCcw className="mr-1 h-3 w-3 scale-x-[-1]" />
           {t.redo}
         </Button>
       </div>
 
-      {/* Action buttons (always below canvas now) */}
-      <div className="flex items-center gap-2 p-2.5 bg-muted/30">
-        {!running && !submitted && (
-          <Button size="sm" onClick={() => {
-            const rect = svgRef.current?.getBoundingClientRect()
-            setState(prev => {
-              const ops = [...prev.operations]
-              if (rect) {
-                ops.push({ 
-                  type: 'canvas_meta', 
-                  elapsed_seconds: (isPractice ? 120 : 90) - remainingTime,
-                  canvas_width: rect.width, 
-                  canvas_height: rect.height 
-                })
-              }
-              return { ...prev, operations: ops }
-            })
-            setRunning(true)
-          }} className="w-full">
+      {/* Action buttons */}
+      <div className="flex items-center gap-1.5 p-2 bg-muted/30 shrink-0">
+        {!isActive && !submitted && (
+          <Button size="sm" onClick={() => onActivate?.()} className="w-full h-8 text-xs">
             <Play className="mr-1.5 h-3.5 w-3.5" />
-            {remainingTime === (isPractice ? 120 : 90) ? t.start : t.resume}
+            {!hasStarted ? t.start : t.resume}
           </Button>
         )}
         
-        {running && !submitted && (
+        {isActive && !submitted && (
           <>
-            <Button size="sm" variant="outline" onClick={() => setRunning(false)}>
-              <Pause className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="sm" variant="outline" onClick={() => onPause?.()} className="h-8 text-xs px-2">
+              <Pause className="mr-1 h-3 w-3" />
               {t.pause}
             </Button>
             <div className="flex-1" />
-            <Button size="sm" variant="destructive" onClick={() => handleFinish('gave_up')}>
-              <X className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="sm" variant="destructive" onClick={() => handleFinish('gave_up')} className="h-8 text-xs px-2">
+              <X className="mr-1 h-3 w-3" />
               {t.giveUp}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleFinish('participant_finished')}>
-              <Check className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="sm" variant="outline" onClick={() => handleFinish('participant_finished')} className="h-8 text-xs px-2">
+              <Check className="mr-1 h-3 w-3" />
               {t.done}
             </Button>
           </>
         )}
 
         {submitted && (
-          <div className="w-full flex items-center justify-center">
-            <Badge variant="secondary" className="text-xs">
-              <Check className="mr-1 h-3 w-3" />
-              {t.completed}
-            </Badge>
-          </div>
+          isPractice ? (
+            <div className="w-full flex items-center justify-center py-1">
+              <Badge variant="secondary" className="text-xs">
+                <Check className="mr-1 h-3 w-3" />
+                {t.completed}
+              </Badge>
+            </div>
+          ) : feedback ? (
+            <div className="w-full flex flex-col items-center gap-0.5 py-1 px-2 bg-muted/40 rounded border border-border/50 text-center animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant={feedback.reason === 'gave_up' ? 'destructive' : feedback.accuracy >= 80 ? 'default' : 'secondary'} 
+                  className="text-[11px] font-semibold h-5 px-1.5"
+                >
+                  {feedback.reason === 'gave_up' 
+                    ? (lang === 'de' ? 'Aufgegeben' : 'Given up') 
+                    : `🎯 ${feedback.accuracy}% ${lang === 'de' ? 'Genauigkeit' : 'Match'}`}
+                </Badge>
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  ⏱️ {feedback.elapsed.toFixed(1)}s
+                </span>
+              </div>
+              <span className="text-[10.5px] text-muted-foreground leading-tight">
+                {feedback.reason === 'gave_up'
+                  ? (lang === 'de' ? 'Variante übersprungen' : 'Option skipped')
+                  : feedback.accuracy >= 90
+                    ? (lang === 'de' ? 'Hervorragend angepasst!' : 'Excellent match!')
+                    : feedback.accuracy >= 75
+                      ? (lang === 'de' ? 'Gut angepasst!' : 'Good match!')
+                      : (lang === 'de' ? 'Abgeschlossen' : 'Completed')}
+                {' '}({state.graph.nodes.length} {lang === 'de' ? 'Anker' : 'anchors'})
+              </span>
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-center py-1">
+              <Badge variant="secondary" className="text-xs">
+                <Check className="mr-1 h-3 w-3" />
+                {t.completed}
+              </Badge>
+            </div>
+          )
         )}
       </div>
     </Card>

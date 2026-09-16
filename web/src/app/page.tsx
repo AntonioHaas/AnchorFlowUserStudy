@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, ChevronRight, Info, Globe } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Info, Globe, Send, MessageSquare } from 'lucide-react'
 
 type Language = 'de' | 'en'
 
@@ -21,17 +21,22 @@ const TRANSLATIONS = {
     finish: 'Abschließen',
     overallProgress: 'Gesamtfortschritt',
     landingTitle: 'Willkommen zur Formbearbeitungsstudie',
-    landingP1: 'In dieser Studie werden Sie Vektorgrafiken (SVGs) bearbeiten. Ihnen wird jeweils ein Ziel (Target) angezeigt, und Sie sollen versuchen, die vorgegebene Form mit den zur Verfügung stehenden Werkzeugen so gut wie möglich nachzubilden.',
-    landingP2: 'Sie beginnen mit einer kurzen Übungsphase, gefolgt von den eigentlichen Aufgaben.',
+    landingP1: 'In dieser Studie werden Sie Vektorgrafiken (SVGs) bearbeiten. Ihnen wird jeweils ein Ziel (gestrichelte Linie) angezeigt, und Sie sollen versuchen, die vorgegebene Form mit den zur Verfügung stehenden Werkzeugen so gut wie möglich nachzubilden.',
+    landingP2: 'Sie beginnen mit einer kurzen Übungsphase, gefolgt von den 3 Aufgaben mit jeweils 4 Varianten.',
     landingStart: 'Studie beginnen',
-    methodA: 'Methode A',
-    methodB: 'Methode B',
     doneTitle: 'Studie abgeschlossen',
     doneDesc: 'Vielen Dank für Ihre Teilnahme.',
-    doneMsg: 'Ihre Ergebnisse wurden erfolgreich und sicher übermittelt. Sie können dieses Fenster nun schließen.',
+    doneMsg: 'Ihre Ergebnisse wurden erfolgreich und sicher übermittelt.',
     mustComplete: 'Bitte bearbeiten Sie alle Varianten, bevor Sie fortfahren.',
     mobileBlockerTitle: 'Desktop-Browser Erforderlich',
-    mobileBlockerDesc: 'Diese Studie erfordert präzise Maus-Eingaben für die Vektorbearbeitung. Bitte verwenden Sie einen Computer (PC oder Mac), um teilzunehmen.'
+    mobileBlockerDesc: 'Diese Studie erfordert präzise Maus-Eingaben für die Vektorbearbeitung. Bitte verwenden Sie einen Computer (PC oder Mac), um teilzunehmen.',
+    feedbackPrompt: 'Haben Sie Anmerkungen oder Feedback zur Studie? (Optional)',
+    feedbackPlaceholder: 'Ihre Rückmeldung zu Bedienung, Schwierigkeit oder Werkzeugen...',
+    feedbackSubmit: 'Feedback absenden',
+    feedbackThanks: '✓ Vielen Dank für Ihr Feedback!',
+    totalEdits: 'Bearbeitungen',
+    totalTime: 'Gesamtzeit',
+    avgAccuracy: 'Ø Genauigkeit',
   },
   en: {
     title: 'Shape Editing Study',
@@ -42,18 +47,36 @@ const TRANSLATIONS = {
     finish: 'Finish',
     overallProgress: 'Overall progress',
     landingTitle: 'Welcome to the Shape Editing Study',
-    landingP1: 'In this study, you will edit vector graphics (SVGs). You will be shown a Target, and you should try to recreate the shape as closely as possible using the provided tools.',
-    landingP2: 'You will begin with a short practice phase, followed by the main tasks.',
+    landingP1: 'In this study, you will edit vector graphics (SVGs). You will be shown a target (dashed outline), and you should try to recreate the shape as closely as possible using the provided tools.',
+    landingP2: 'You will begin with a short practice phase, followed by the 3 tasks with 4 options each.',
     landingStart: 'Start Study',
-    methodA: 'Method A',
-    methodB: 'Method B',
     doneTitle: 'Study Complete',
     doneDesc: 'Thank you for your participation.',
-    doneMsg: 'Your results have been successfully and securely submitted. You may now close this window.',
+    doneMsg: 'Your results have been successfully and securely submitted.',
     mustComplete: 'Please complete all variants before proceeding.',
     mobileBlockerTitle: 'Desktop Browser Required',
-    mobileBlockerDesc: 'This study requires precise mouse inputs for vector editing. Please use a computer (PC or Mac) to participate.'
+    mobileBlockerDesc: 'This study requires precise mouse inputs for vector editing. Please use a computer (PC or Mac) to participate.',
+    feedbackPrompt: 'Do you have any comments or feedback regarding the study? (Optional)',
+    feedbackPlaceholder: 'Your thoughts on usability, difficulty, or editing tools...',
+    feedbackSubmit: 'Submit feedback',
+    feedbackThanks: '✓ Thank you for your feedback!',
+    totalEdits: 'Edits',
+    totalTime: 'Total time',
+    avgAccuracy: 'Avg accuracy',
   }
+}
+
+const ALL_METHOD_KEYS = ['ours', 'adavec', 'vtracer', 'live'] as const
+type MethodKey = typeof ALL_METHOD_KEYS[number]
+const SLOT_LETTERS = ['A', 'B', 'C', 'D'] as const
+
+function shuffleArray<T>(array: readonly T[]): T[] {
+  const arr = [...array]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
 }
 
 export default function StudyPage() {
@@ -63,6 +86,23 @@ export default function StudyPage() {
   const [sessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : '')
   const [lang, setLang] = useState<Language>('de')
   const [isMobile, setIsMobile] = useState(false)
+
+  // Single active editor tracking: only one method key can be active at a time
+  const [activeMethodKey, setActiveMethodKey] = useState<string | null>(null)
+
+  // User feedback on done screen
+  const [userComment, setUserComment] = useState('')
+  const [commentSubmitted, setCommentSubmitted] = useState(false)
+  const [commentSending, setCommentSending] = useState(false)
+
+  // Randomized presentation order per task, generated once per session
+  const [taskMethodOrders] = useState<Record<number, MethodKey[]>>(() => {
+    const orders: Record<number, MethodKey[]> = {}
+    tasksData.formal.forEach((_, taskIdx) => {
+      orders[taskIdx] = shuffleArray(ALL_METHOD_KEYS)
+    })
+    return orders
+  })
 
   React.useEffect(() => {
     const checkMobile = () => {
@@ -80,46 +120,90 @@ export default function StudyPage() {
 
   const t = TRANSLATIONS[lang]
 
-  const currentTask: any = phase === 'practice' ? tasksData.practice[index] : (phase === 'study' ? tasksData.formal[index] : null)
+  const currentTask: any = phase === 'practice' 
+    ? tasksData.practice[index] 
+    : (phase === 'study' ? tasksData.formal[index] : null)
   
+  // In study phase, map randomized method keys to presentation slots A, B, C, D
   const methods = phase === 'practice'
     ? [{ key: 'practice', label: t.practice, short: 'P' }]
-    : [
-        { key: 'ours', label: t.methodA, short: 'A' },
-        { key: 'adavec', label: t.methodB, short: 'B' },
-      ]
+    : (taskMethodOrders[index] || ALL_METHOD_KEYS).map((key, slotIdx) => {
+        const letter = SLOT_LETTERS[slotIdx]
+        return {
+          key,
+          short: letter,
+          label: `${lang === 'de' ? 'Variante' : 'Option'} ${letter}`,
+        }
+      })
 
-  const totalFormalTasks = tasksData.formal.length * 2
-  const completedMethods = phase === 'study' ? index * 2 : 0
-  const progressValue = phase === 'practice' ? 0 : (completedMethods / totalFormalTasks) * 100
+  const totalFormalTasks = tasksData.formal.length * 4
+  const completedFormalMethods = results.filter(r => r.mode === 'clean2400_editing_pilot').length
+  const progressValue = phase === 'practice' ? 0 : (completedFormalMethods / totalFormalTasks) * 100
 
-  // Calculate if current step is fully completed
+  // Calculate if current task has completed all presented options
   const currentStepResults = results.filter(r => 
     r.task_id === currentTask?.id && 
     r.mode === (phase === 'practice' ? 'practice_pilot' : 'clean2400_editing_pilot')
   )
   const isStepComplete = currentStepResults.length >= methods.length
 
+  // Stats for the current task (only after tutorial)
+  const taskAvgTime = currentStepResults.length > 0
+    ? (currentStepResults.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0) / currentStepResults.length).toFixed(1)
+    : '0'
+  const stepAccs = currentStepResults.filter(r => typeof r.accuracy === 'number')
+  const taskAvgAcc = stepAccs.length > 0
+    ? Math.round(stepAccs.reduce((acc, r) => acc + r.accuracy, 0) / stepAccs.length)
+    : null
+
+  // Overall study stats for completion screen
+  const formalResults = results.filter(r => r.mode === 'clean2400_editing_pilot')
+  const totalStudyTime = formalResults.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0)
+  const formalAccs = formalResults.filter(r => typeof r.accuracy === 'number')
+  const overallAvgAcc = formalAccs.length > 0
+    ? Math.round(formalAccs.reduce((acc, r) => acc + r.accuracy, 0) / formalAccs.length)
+    : null
+
   const handleComplete = async (methodKey: string, data: any) => {
+    // Release active editor
+    if (activeMethodKey === methodKey) {
+      setActiveMethodKey(null)
+    }
+
+    const methodSrc = currentTask?.predictions?.[methodKey]
+    const actualMethodName = methodSrc?.method || (
+      methodKey === 'ours' ? 'Ours' :
+      methodKey === 'adavec' ? 'AdaVec' :
+      methodKey === 'vtracer' ? 'VTracer' :
+      methodKey === 'live' ? 'LIVE' : (data.method || methodKey)
+    )
+
+    const displayedSlot = methods.find(m => m.key === methodKey)?.short || data.method_code || 'A'
+
     const record = {
       mode: phase === 'practice' ? 'practice_pilot' : 'clean2400_editing_pilot',
       task_id: currentTask.id,
-      benchmark_ordinal: 0,
-      sample_id: currentTask.sample_id,
-      method: data.method,
-      method_key: data.method_key,
-      method_code: data.method_key === 'ours' ? 'A' : 'B',
+      benchmark_ordinal: currentTask.benchmark_ordinal || 0,
+      sample_id: currentTask.sample_id || null,
+      method: actualMethodName, // Always TRUE native method name: 'Ours', 'AdaVec', 'VTracer', 'LIVE'
+      method_key: methodKey,    // Always TRUE native method key: 'ours', 'adavec', 'vtracer', 'live'
+      method_code: displayedSlot, // 'A', 'B', 'C', or 'D' (slot presented to user for this task)
       completion_state: data.completion_state,
-      source_svg_sha256: currentTask?.predictions[methodKey]?.sha256 || '',
-      input_sha256: currentTask?.sha256 || '',
-      source_path: currentTask?.predictions[methodKey]?.relative_path || '',
-      attempt: 1,
+      source_svg_sha256: methodSrc?.sha256 || '',
+      input_sha256: currentTask?.input_sha256 || '',
+      source_path: methodSrc?.relative_path || '',
+      attempt: results.filter(r => r.task_id === currentTask.id && r.method_key === methodKey).length + 1,
       submitted_at: new Date().toISOString(),
       elapsed_seconds: data.elapsed_seconds,
       stop_reason: data.stop_reason,
       success: data.completion_state === 'completed',
       original_anchor_count: data.original_anchor_count,
       final_anchor_count: data.final_anchor_count,
+      initial_path: data.initial_path || methodSrc?.d || '',
+      edited_path: data.edited_path || '',
+      target_path: currentTask?.after || '',
+      accuracy: data.accuracy,
+      operations: data.operations || [],
     }
 
     setResults(prev => [...prev, record])
@@ -144,6 +228,7 @@ export default function StudyPage() {
 
   const handleNext = () => {
     if (!isStepComplete) return
+    setActiveMethodKey(null)
 
     if (phase === 'practice') {
       if (index < tasksData.practice.length - 1) {
@@ -161,6 +246,29 @@ export default function StudyPage() {
     }
   }
 
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userComment.trim()) return
+    setCommentSending(true)
+    try {
+      const res = await fetch('/api/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          note: userComment.trim()
+        }),
+      })
+      if (res.ok) {
+        setCommentSubmitted(true)
+      }
+    } catch (err) {
+      console.error('Error submitting feedback:', err)
+    } finally {
+      setCommentSending(false)
+    }
+  }
+
   // Update HTML lang attribute for WCAG compliance
   React.useEffect(() => {
     document.documentElement.lang = lang
@@ -172,16 +280,16 @@ export default function StudyPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
         <h1 className="text-base font-semibold tracking-tight">{t.title}</h1>
         
-        {phase !== 'landing' && phase !== 'done' && (
+        {phase !== 'landing' && phase !== 'done' && currentTask && (
           <>
             <Separator orientation="vertical" className="hidden sm:block h-8" />
             <div className="flex flex-col" aria-live="polite">
               <span className="text-sm font-medium flex items-center gap-1.5">
                 <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                {lang === 'de' ? currentTask.name : (currentTask.name_en || currentTask.name)}
+                {lang === 'de' ? (currentTask.name || currentTask.title) : (currentTask.name_en || currentTask.title || currentTask.name)}
               </span>
               <span className="text-xs text-muted-foreground">
-                {lang === 'de' ? currentTask.instruction : (currentTask.instruction_en || currentTask.instruction)}
+                {lang === 'de' ? (currentTask.instruction_de || currentTask.instruction) : (currentTask.instruction_en || currentTask.instruction)}
               </span>
             </div>
           </>
@@ -215,14 +323,14 @@ export default function StudyPage() {
   if (phase === 'landing') {
     return (
       <div className="min-h-screen p-2 md:p-4 bg-muted/20">
-        <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
+        <div className="max-w-[1700px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
           <TopNav />
           <div className="flex items-center justify-center min-h-[85vh]">
             <Card className="w-full max-w-2xl mx-4 overflow-hidden">
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-2xl sm:text-3xl font-bold break-words hyphens-auto">{t.landingTitle}</CardTitle>
                 <CardDescription className="text-base sm:text-lg mt-2">
-                  {lang === 'de' ? 'Vector Shape Editing' : 'Vector Shape Editing'}
+                  {lang === 'de' ? 'Vektorbearbeitung & Formoptimierung' : 'Vector Shape Editing'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
@@ -237,7 +345,7 @@ export default function StudyPage() {
                     <p>{t.landingP1}</p>
                     <p>{t.landingP2}</p>
                     <div className="flex justify-center pt-4">
-                      <Button size="lg" onClick={() => setPhase('practice')} className="px-12 text-lg h-14">
+                      <Button size="lg" onClick={() => { setActiveMethodKey(null); setPhase('practice'); }} className="px-12 text-lg h-14">
                         {t.landingStart}
                       </Button>
                     </div>
@@ -251,26 +359,71 @@ export default function StudyPage() {
     )
   }
 
-  // ── Completion screen ──
+  // ── Completion screen with Study Stats & Qualitative Feedback ──
   if (phase === 'done') {
     return (
       <div className="min-h-screen p-2 md:p-4 bg-muted/20">
-        <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
+        <div className="max-w-[1700px] mx-auto flex flex-col gap-3 h-[calc(100vh-2rem)]">
           <TopNav />
-          <div className="flex-1 flex items-center justify-center">
-            <Card className="w-full max-w-md shadow-md">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                  <CheckCircle2 className="h-6 w-6 text-foreground" />
+          <div className="flex-1 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg shadow-md">
+              <CardHeader className="text-center pb-3">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <CardTitle className="text-lg">{t.doneTitle}</CardTitle>
+                <CardTitle className="text-xl">{t.doneTitle}</CardTitle>
                 <CardDescription>{t.doneDesc}</CardDescription>
               </CardHeader>
-              <Separator />
-              <CardContent className="pt-4 text-center">
-                <p className="text-sm text-muted-foreground mb-6">
+              
+              {/* Post-study Performance Feedback */}
+              <CardContent className="space-y-5 pt-1">
+                <p className="text-xs text-center text-muted-foreground">
                   {t.doneMsg}
                 </p>
+
+                <div className="grid grid-cols-3 gap-2 p-3 bg-muted/50 rounded-lg border text-center font-mono">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-muted-foreground uppercase">{t.totalEdits}</span>
+                    <span className="text-sm font-semibold mt-0.5">{formalResults.length} / {totalFormalTasks}</span>
+                  </div>
+                  <div className="flex flex-col border-x">
+                    <span className="text-[11px] text-muted-foreground uppercase">{t.totalTime}</span>
+                    <span className="text-sm font-semibold mt-0.5">{Math.round(totalStudyTime)}s</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-muted-foreground uppercase">{t.avgAccuracy}</span>
+                    <span className="text-sm font-semibold mt-0.5">{overallAvgAcc !== null ? `${overallAvgAcc}%` : '-'}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Qualitative Feedback Option */}
+                {!commentSubmitted ? (
+                  <form onSubmit={handleCommentSubmit} className="space-y-3">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{t.feedbackPrompt}</span>
+                    </div>
+                    <textarea
+                      value={userComment}
+                      onChange={e => setUserComment(e.target.value)}
+                      placeholder={t.feedbackPlaceholder}
+                      rows={3}
+                      className="w-full text-xs p-2.5 rounded-md border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <div className="flex justify-end">
+                      <Button size="sm" type="submit" disabled={!userComment.trim() || commentSending} className="h-8 text-xs">
+                        <Send className="mr-1.5 h-3 w-3" />
+                        {commentSending ? '...' : t.feedbackSubmit}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 text-center text-xs text-primary font-medium">
+                    {t.feedbackThanks}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -282,67 +435,100 @@ export default function StudyPage() {
   // ── Main Workspace ──
   return (
     <div className="min-h-screen p-2 md:p-4 pb-12">
-      <div className="max-w-[1560px] mx-auto flex flex-col gap-3 h-[calc(100vh-5rem)]">
+      <div className="max-w-[1700px] mx-auto flex flex-col gap-3 h-[calc(100vh-5rem)]">
         <TopNav />
 
-        <div className="flex flex-col lg:flex-row gap-3 items-start flex-1 min-h-0">
-          {/* Target preview */}
-          <Card className="w-full lg:w-[260px] shrink-0 h-full flex flex-col">
-            <CardHeader className="py-2 px-3 shrink-0">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t.target}
-              </CardTitle>
-            </CardHeader>
-            <Separator />
-            <CardContent className="p-0 flex-1 flex items-center justify-center bg-muted/10 min-h-0 overflow-hidden">
-              <div className="relative aspect-square h-full max-h-[500px] w-full max-w-[500px] overflow-hidden m-2 border rounded-md shadow-sm bg-background">
-                <svg 
-                  viewBox="0 0 256 256" 
-                  className="w-full h-full"
-                  role="img"
-                  aria-label={lang === 'de' ? "Vorschau der Zielform" : "Target shape preview"}
-                >
-                  <path d={currentTask.after} fill="#4a90b8" />
-                  <path
-                    d={currentTask.before}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={0.6}
-                    strokeDasharray="3 2"
-                    className="text-muted-foreground/40"
-                  />
-                </svg>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Editor canvases */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 h-full min-w-0">
-            {methods.map(m => (
+        {/* Editor canvases - 4 columns in study phase, 1 centered in practice */}
+        <div className="flex-1 min-h-0">
+          {phase === 'practice' ? (
+            <div className="flex justify-center h-full max-w-xl mx-auto">
               <CanvasEditor
-                key={m.key + index + phase}
-                method={m}
+                key="practice"
+                method={methods[0]}
                 task={currentTask}
-                isPractice={phase === 'practice'}
+                isPractice={true}
+                isActive={activeMethodKey === methods[0].key}
+                onActivate={() => setActiveMethodKey(methods[0].key)}
+                onPause={() => setActiveMethodKey(null)}
                 onComplete={handleComplete}
                 lang={lang}
               />
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 h-full min-w-0">
+              {methods.map(m => (
+                <CanvasEditor
+                  key={m.key + index + phase}
+                  method={m}
+                  task={currentTask}
+                  isPractice={false}
+                  isActive={activeMethodKey === m.key}
+                  onActivate={() => setActiveMethodKey(m.key)}
+                  onPause={() => setActiveMethodKey(null)}
+                  onComplete={handleComplete}
+                  lang={lang}
+                />
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Post-tutorial task completion feedback banner */}
+        {phase === 'study' && isStepComplete && (
+          <div className="bg-card border border-primary/30 rounded-lg p-2.5 px-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+              <div>
+                <span className="text-sm font-semibold">
+                  {lang === 'de'
+                    ? `Aufgabe ${index + 1} abgeschlossen!`
+                    : `Task ${index + 1} complete!`}
+                </span>
+                <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
+                  {lang === 'de'
+                    ? 'Alle 4 Varianten wurden erfolgreich bearbeitet.'
+                    : 'All 4 options have been completed.'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className="font-mono text-xs">
+                ⏱️ {lang === 'de' ? 'Ø Zeit' : 'Avg time'}: {taskAvgTime}s
+              </Badge>
+              {taskAvgAcc !== null && (
+                <Badge variant="default" className="font-mono text-xs">
+                  🎯 {lang === 'de' ? 'Ø Genauigkeit' : 'Avg match'}: {taskAvgAcc}%
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Footer: navigation + progress ── */}
         <div className="bg-card border rounded-lg px-4 py-2 shrink-0 flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex-1 max-w-md">
+          <div className="flex items-center gap-4 flex-1 max-w-2xl">
             {phase === 'study' ? (
-              <div className="flex items-center gap-3">
-                <Progress value={progressValue} className="h-2 w-32" />
-                <span className="text-xs font-mono text-muted-foreground">
-                  {t.overallProgress}: {completedMethods} / {totalFormalTasks}
-                </span>
-              </div>
+              <>
+                <div className="flex items-center gap-3">
+                  <Progress value={progressValue} className="h-2 w-28 sm:w-36" />
+                  <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                    {t.overallProgress}: {completedFormalMethods} / {totalFormalTasks}
+                  </span>
+                </div>
+                {/* Per-slot progress pills */}
+                <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                  {SLOT_LETTERS.map(code => {
+                    const count = results.filter(r => r.mode === 'clean2400_editing_pilot' && r.method_code === code).length
+                    return (
+                      <span key={code} className="px-2 py-0.5 rounded bg-muted/70 text-[11px]">
+                        {lang === 'de' ? 'Var.' : 'Opt.'} {code}: {count}/{tasksData.formal.length}
+                      </span>
+                    )
+                  })}
+                </div>
+              </>
             ) : (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground font-medium">
                 {t.practice}
               </span>
             )}
@@ -366,7 +552,7 @@ export default function StudyPage() {
         </div>
         
         {/* ── Citation ── */}
-        <div className="text-center text-xs text-muted-foreground mt-1 mb-8">
+        <div className="text-center text-xs text-muted-foreground mt-1 mb-6">
           Einige Formen stammen aus <a href="https://github.com/amcghm/ColorSVG-100K" className="underline hover:text-foreground" target="_blank" rel="noreferrer">ColorSVG-100K</a> (CC BY-NC-SA 4.0) und STIX-Schriften. 
           Some shapes come from ColorSVG-100K and STIX fonts. <a href="/attribution.json" className="underline hover:text-foreground" target="_blank" rel="noreferrer">Lizenzen / Licenses</a>.
         </div>

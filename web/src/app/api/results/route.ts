@@ -24,7 +24,7 @@ const handler = withSupabase({ auth: 'none' }, async (req, ctx) => {
   }
 
   const body = await req.json()
-  const { session_id, schema, record, records } = body
+  const { session_id, schema, record, records, note } = body
 
   if (!session_id || typeof session_id !== 'string') {
     return Response.json({ error: 'Missing session_id' }, { status: 400 })
@@ -33,10 +33,15 @@ const handler = withSupabase({ auth: 'none' }, async (req, ctx) => {
   const supabase = ctx.supabaseAdmin
 
   // Ensure session row exists (upsert is idempotent)
+  const sessionPayload: any = { id: session_id, schema: schema || 'anchorflow-benchmark2400-editor-v1' }
+  if (note !== undefined && typeof note === 'string') {
+    sessionPayload.note = note
+  }
+
   const { error: sessionErr } = await supabase
     .from('study_sessions')
     .upsert(
-      { id: session_id, schema: schema || 'anchorflow-benchmark2400-editor-v1' },
+      sessionPayload,
       { onConflict: 'id' }
     )
 
