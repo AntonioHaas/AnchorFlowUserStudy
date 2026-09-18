@@ -53,7 +53,7 @@ const handler = withSupabase({ auth: 'none' }, async (req, ctx) => {
   // Allowed columns in public.study_records to prevent schema cache errors
   const ALLOWED_RECORD_COLUMNS = new Set([
     'session_id', 'mode', 'task_id', 'benchmark_ordinal', 'sample_id',
-    'method', 'method_key', 'method_code', 'completion_state',
+    'participant_experience', 'method', 'method_key', 'method_code', 'completion_state',
     'source_svg_sha256', 'input_sha256', 'source_path', 'attempt',
     'submitted_at', 'elapsed_seconds', 'stop_reason', 'success',
     'original_anchor_count', 'final_anchor_count', 'initial_path',

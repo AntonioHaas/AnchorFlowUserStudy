@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Play, Pause, Check, X, RotateCcw } from 'lucide-react'
+import { Play, Pause, Check, X, RotateCcw, Maximize } from 'lucide-react'
 
 function clone(x: any) {
   return JSON.parse(JSON.stringify(x))
@@ -35,6 +35,7 @@ export default function CanvasEditor({
       deleteAnchor: 'Anker löschen',
       undo: 'Rückgängig',
       redo: 'Wiederholen',
+      resetView: 'Ansicht zentrieren',
     },
     en: {
       start: 'Start',
@@ -48,6 +49,7 @@ export default function CanvasEditor({
       deleteAnchor: 'Delete anchor',
       undo: 'Undo',
       redo: 'Redo',
+      resetView: 'Reset View',
     }
   }
   const t = (TRANSLATIONS as any)[lang]
@@ -631,6 +633,13 @@ export default function CanvasEditor({
     drawRef.current?.()
   }
 
+  const handleResetView = () => {
+    if (submitted) return
+    const s = editorRef.current
+    s.view = { x: -12, y: -12, w: 280, h: 280 }
+    drawRef.current?.()
+  }
+
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60)
     const s = secs % 60
@@ -693,6 +702,10 @@ export default function CanvasEditor({
         <Button size="sm" variant="outline" onClick={handleRedo} disabled={!s.future.length || !isActive || submitted} className="h-7 text-xs px-2">
           <RotateCcw className="mr-1 h-3 w-3 scale-x-[-1]" />
           {t.redo}
+        </Button>
+        <div className="flex-1" />
+        <Button size="sm" variant="outline" onClick={handleResetView} disabled={!isActive || submitted} className="h-7 text-xs px-2" title={t.resetView}>
+          <Maximize className="h-3 w-3" />
         </Button>
       </div>
 

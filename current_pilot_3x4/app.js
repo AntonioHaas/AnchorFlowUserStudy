@@ -104,7 +104,17 @@ function submitState(s,reason){
 function tick(){if(phase==='practice')return;for(const s of Object.values(states)){if(!s.running)continue;const left=Math.max(0,90-elapsedMs(s)/1000);q(s,'remaining').textContent=Math.ceil(left);if(left<=0)submitState(s,'timeout')}}
 function updateProgress(){const total=results.length,max=TASKS.length*METHODS.length;$('totalProgress').max=max;$('totalProgress').value=total;$('progressLabel').textContent=`${total} / ${max}`;for(const m of METHODS){const count=results.filter(r=>r.method_code===m.short).length;$('progress'+m.short).max=TASKS.length;$('progress'+m.short).value=count;$('progress'+m.short+'Text').textContent=`${count} / ${TASKS.length}`}$('count').textContent=`${total} / ${max} fertig / complete`}
 function updatePageState(){
- const complete=currentMethods().every(m=>states[m.key].submitted);if(phase==='practice'){$('submit').hidden=true;$('next').hidden=false;$('next').disabled=!complete;$('next').textContent='Studie starten / Start study →';$('pageStatus').textContent=complete?'Übung fertig. / Practice complete.':'Drei Schritte ausführen oder überspringen. / Complete three steps or skip.';return}
+ const complete=currentMethods().every(m=>states[m.key].submitted);
+ if(phase==='practice'){
+  $('submit').hidden=true;$('next').hidden=false;
+  if($('experienceWrap')) $('experienceWrap').style.display='flex';
+  const exp=$('experience')?$('experience').value:'';
+  const canStart=complete&&exp!=='';
+  $('next').disabled=!canStart;$('next').textContent='Studie starten / Start study →';
+  $('pageStatus').textContent=complete?(exp===''?'Bitte Erfahrung wählen. / Please select experience.':'Übung fertig. / Practice complete.'):'Drei Schritte ausführen oder überspringen. / Complete three steps or skip.';
+  return;
+ }
+ if($('experienceWrap')) $('experienceWrap').style.display='none';
  const last=index===TASKS.length-1;$('next').hidden=last;$('next').disabled=!complete;$('next').textContent='Nächste Aufgabe / Next task →';$('submit').hidden=!(last&&complete);$('submit').disabled=false;$('submit').textContent=finalSubmitted?'Erneut teilen / Share again':'Teilen / Ergebnisse speichern · Share / Save results';$('pageStatus').classList.toggle('submit-success',finalSubmitted);$('pageStatus').textContent=finalSubmitted?'Ergebnisse bereit. / Results ready.':complete?(last?'Alles abgeschlossen. / All complete.':'Aufgabe abgeschlossen. / Task complete.'):'Alle vier Varianten abschließen oder aufgeben. / Complete or give up all four options.';
 }
 function renderTarget(task){$('target').replaceChildren();el('path',{d:task.after,fill:'#397fa6'},$('target'));el('path',{d:task.before,fill:'none',stroke:'#8b99a3','stroke-width':.8,'stroke-dasharray':'3 2'},$('target'))}
@@ -113,15 +123,16 @@ function loadPractice(){phase='practice';tutorialStep=0;activeKey=null;lastKey='
 function loadStudy(i){phase='study';index=i;activeKey=null;lastKey='ours';$('progressBlock').hidden=false;$('tutorialSteps').hidden=true;$('editors').classList.remove('practice');$('name').textContent=TASKS[i].title;$('instruction').textContent='';$('taskBadge').textContent=`Aufgabe ${i+1} / ${TASKS.length} · Task · ${TASKS[i].title}`;renderTarget(TASKS[i]);buildCards(METHODS);updateProgress();updatePageState()}
 function load(i){loadStudy(i)}
 function download(text,type,name){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
-function resultText(){return JSON.stringify({schema:'anchorflow-benchmark2400-editor-v1',study_session_id:SESSION_ID,note:'Synthetic practice is not recorded. Clean2400 examples 1092, 973, and 1285 use four native method outputs and authored target edits. Results are not uploaded automatically.',records:results},null,2)}
+function resultText(){return JSON.stringify({schema:'anchorflow-benchmark2400-editor-v1',study_session_id:SESSION_ID,participant_experience:$('experience')?$('experience').value:'',note:'Synthetic practice is not recorded. Clean2400 examples 1092, 973, and 1285 use four native method outputs and authored target edits. Results are not uploaded automatically.',records:results},null,2)}
 async function deliverResults(){
  const text=resultText(),name=`shape-edit-${SESSION_ID.slice(0,8)}-${new Date().toISOString().replace(/[:.]/g,'-')}.json`,file=new File([text],name,{type:'application/json'});let shared=false;
  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({title:'Ergebnisse der Formbearbeitungsstudie / Shape Editing Study Results',text:'Bitte an das Forschungsteam senden. / Please send this file to the research team.',files:[file]});shared=true}catch(e){if(e.name!=='AbortError')console.warn(e)}}
  if(!shared)download(text,'application/json',name);
  downloaded=true;finalSubmitted=true;updatePageState();$('pageStatus').textContent=shared?'Freigabe geöffnet. / Share sheet opened.':'Datei heruntergeladen. Bitte per E-Mail oder Chat senden. / File downloaded. Please send it by email or chat.';
 }
-$('next').onclick=()=>{if(phase==='practice'){if(states.practice.submitted)loadStudy(0);return}if(METHODS.every(m=>states[m.key].submitted)&&index<TASKS.length-1)loadStudy(index+1)};
+$('next').onclick=()=>{if(phase==='practice'){if(states.practice.submitted&&$('experience')&&$('experience').value!=='')loadStudy(0);return}if(METHODS.every(m=>states[m.key].submitted)&&index<TASKS.length-1)loadStudy(index+1)};
 $('submit').onclick=()=>{if(results.length===TASKS.length*METHODS.length)deliverResults()};
+if($('experience')) $('experience').onchange=updatePageState;
 document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target.tagName))return;const s=states[activeKey]||states[lastKey];if(e.code==='Space'){e.preventDefault();space=true}if(!s)return;if(e.key==='Escape'){s.adding=false;draw(s)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo(s):undo(s)}if((e.key==='Delete'||e.key==='Backspace')&&s.selected.size){e.preventDefault();remove(s)}});
 document.addEventListener('keyup',e=>{if(e.code==='Space')space=false});window.addEventListener('blur',()=>{space=false;for(const s of Object.values(states))s.drag=null});window.addEventListener('beforeunload',e=>{if(Object.values(states).some(s=>s.running)||(!downloaded&&results.length)){e.preventDefault();e.returnValue=''}});
 setInterval(tick,100);loadPractice();

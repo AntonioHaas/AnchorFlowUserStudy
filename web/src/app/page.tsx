@@ -86,6 +86,7 @@ export default function StudyPage() {
   const [sessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : '')
   const [lang, setLang] = useState<Language>('de')
   const [isMobile, setIsMobile] = useState(false)
+  const [svgExperience, setSvgExperience] = useState<string>('')
 
   // Single active editor tracking: only one method key can be active at a time
   const [activeMethodKey, setActiveMethodKey] = useState<string | null>(null)
@@ -179,6 +180,7 @@ export default function StudyPage() {
       task_id: currentTask.id,
       benchmark_ordinal: currentTask.benchmark_ordinal || 0,
       sample_id: currentTask.sample_id || null,
+      participant_experience: svgExperience,
       method: actualMethodName, // Always TRUE native method name: 'Ours', 'AdaVec', 'LIVE'
       method_key: methodKey,    // Always TRUE native method key: 'ours', 'adavec', 'live'
       method_code: displayedSlot, // 'A', 'B', or 'C' (slot presented to user for this task)
@@ -340,8 +342,24 @@ export default function StudyPage() {
                   <div className="space-y-6 text-lg text-muted-foreground">
                     <p>{t.landingP1}</p>
                     <p>{t.landingP2}</p>
-                    <div className="flex justify-center pt-4">
-                      <Button size="lg" onClick={() => { setActiveMethodKey(null); setPhase('practice'); }} className="px-12 text-lg h-14">
+                    <div className="flex flex-col items-center gap-4 pt-4">
+                      <div className="flex items-center gap-3">
+                        <label htmlFor="svg-experience" className="text-base font-medium text-foreground">
+                          {lang === 'de' ? 'SVG-Erfahrung:' : 'SVG experience:'}
+                        </label>
+                        <select
+                          id="svg-experience"
+                          value={svgExperience}
+                          onChange={(e) => setSvgExperience(e.target.value)}
+                          className="p-2 border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm min-w-[150px]"
+                        >
+                          <option value="">{lang === 'de' ? 'Bitte wählen' : 'Please select'}</option>
+                          <option value="none">{lang === 'de' ? 'Keine' : 'None'}</option>
+                          <option value="some">{lang === 'de' ? 'Etwas' : 'Some'}</option>
+                          <option value="pro">{lang === 'de' ? 'Profi' : 'Pro'}</option>
+                        </select>
+                      </div>
+                      <Button size="lg" disabled={!svgExperience} onClick={() => { setActiveMethodKey(null); setPhase('practice'); }} className="px-12 text-lg h-14">
                         {t.landingStart}
                       </Button>
                     </div>
@@ -515,7 +533,7 @@ export default function StudyPage() {
                 ⏱️ {lang === 'de' ? 'Ø Zeit' : 'Avg time'}: {taskAvgTime}s
               </Badge>
               <Button size="sm" onClick={handleNext} className="h-8 text-xs font-semibold px-4">
-                {t.next}
+                {index === tasksData.formal.length - 1 ? t.finish : t.next}
                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -558,14 +576,6 @@ export default function StudyPage() {
                 {t.mustComplete}
               </span>
             )}
-            <Button onClick={handleNext} size="sm" className="shrink-0" disabled={!isStepComplete}>
-              {phase === 'practice'
-                ? t.next
-                : index === tasksData.formal.length - 1
-                  ? t.finish
-                  : t.next}
-              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
-            </Button>
           </div>
         </div>
         
