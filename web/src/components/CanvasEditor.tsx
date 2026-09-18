@@ -31,8 +31,8 @@ export default function CanvasEditor({
       giveUp: 'Aufgeben',
       completed: 'Abgeschlossen',
       paused: 'Pausiert',
-      addAnchor: '＋ Ankerpunkt',
-      deleteAnchor: 'Anker löschen',
+      addAnchor: '＋ Anker',
+      deleteAnchor: 'Löschen',
       undo: 'Rückgängig',
       redo: 'Wiederholen',
       resetView: 'Ansicht zentrieren',
@@ -688,23 +688,24 @@ export default function CanvasEditor({
       <Separator />
       
       {/* Editor toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5 p-2 bg-muted/10 border-b shrink-0">
-        <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-xs px-2">
-          {t.addAnchor}
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-xs px-2">
-          {t.deleteAnchor}
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleUndo} disabled={!s.history.length || !isActive || submitted} className="h-7 text-xs px-2">
-          <RotateCcw className="mr-1 h-3 w-3" />
-          {t.undo}
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleRedo} disabled={!s.future.length || !isActive || submitted} className="h-7 text-xs px-2">
-          <RotateCcw className="mr-1 h-3 w-3 scale-x-[-1]" />
-          {t.redo}
-        </Button>
-        <div className="flex-1" />
-        <Button size="sm" variant="outline" onClick={handleResetView} disabled={!isActive || submitted} className="h-7 text-xs px-2" title={t.resetView}>
+      <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-muted/10 border-b shrink-0">
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5">
+            {t.addAnchor}
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+            {t.deleteAnchor}
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleUndo} disabled={!s.history.length || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+            <RotateCcw className="mr-1 h-3 w-3" />
+            <span className="hidden sm:inline">{t.undo}</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleRedo} disabled={!s.future.length || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+            <RotateCcw className="mr-1 h-3 w-3 scale-x-[-1]" />
+            <span className="hidden sm:inline">{t.redo}</span>
+          </Button>
+        </div>
+        <Button size="sm" variant="outline" onClick={handleResetView} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0" title={t.resetView}>
           <Maximize className="h-3 w-3" />
         </Button>
       </div>

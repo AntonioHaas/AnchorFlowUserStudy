@@ -37,8 +37,15 @@ export const GET = withSupabase({ auth: 'none' }, async (req, ctx) => {
 
   const header = columns.join(',')
   const rows = records.map(r => {
+    // Extract participant_experience from operations array if it exists
+    let exp = ''
+    if (Array.isArray(r.operations)) {
+      const expOp = r.operations.find((op: any) => op.type === 'participant_experience')
+      if (expOp) exp = expOp.experience
+    }
+
     return columns.map(col => {
-      let val = r[col]
+      let val = col === 'participant_experience' ? exp : r[col]
       if (val === null || val === undefined) return ''
       // Escape quotes and wrap in quotes if there's a comma
       const str = String(val)

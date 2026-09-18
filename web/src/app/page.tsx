@@ -282,11 +282,11 @@ export default function StudyPage() {
           <>
             <Separator orientation="vertical" className="hidden sm:block h-8" />
             <div className="flex flex-col" aria-live="polite">
-              <span className="text-sm font-medium flex items-center gap-1.5">
-                <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm font-bold flex items-center gap-1.5 text-foreground">
+                <Info className="h-4 w-4 text-primary" aria-hidden="true" />
                 {lang === 'de' ? (currentTask.name || currentTask.title) : (currentTask.name_en || currentTask.title || currentTask.name)}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm text-foreground/90">
                 {lang === 'de' ? (currentTask.instruction_de || currentTask.instruction) : (currentTask.instruction_en || currentTask.instruction)}
               </span>
             </div>
