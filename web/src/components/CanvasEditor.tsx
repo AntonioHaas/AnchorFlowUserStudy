@@ -196,6 +196,18 @@ export default function CanvasEditor({
       setFeedback(fb)
     }
 
+    // Compute formal accuracy in background
+    let formalAccuracy = undefined
+    if (!isPractice && task.after) {
+      formalAccuracy = computeMatchScore(s.graph, task.after).accuracy
+    }
+
+    const add_points_count = s.operations.filter((o: any) => o.type === 'insert_anchor').length
+    const delete_points_count = s.operations.filter((o: any) => o.type === 'delete_anchor').length
+    const move_points_count = s.operations.filter((o: any) => o.type === 'move_anchor' || o.type === 'move_control').length
+    const undo_count = s.operations.filter((o: any) => o.type === 'undo').length
+    const redo_count = s.operations.filter((o: any) => o.type === 'redo').length
+
     onComplete(method.key, {
       method: methodSrc?.method || method.key,
       method_key: method.key,
@@ -207,7 +219,12 @@ export default function CanvasEditor({
       final_anchor_count: s.graph.nodes.length,
       initial_path: Geometry.path(s.initial),
       edited_path: Geometry.path(s.graph),
-      accuracy: fb?.accuracy,
+      accuracy: isPractice ? fb?.accuracy : formalAccuracy,
+      add_points_count,
+      delete_points_count,
+      move_points_count,
+      undo_count,
+      redo_count,
       operations: [
         ...s.operations,
         {

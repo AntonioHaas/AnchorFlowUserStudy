@@ -29,23 +29,23 @@ export const GET = withSupabase({ auth: 'none' }, async (req, ctx) => {
 
   // Generate CSV for records (omitting operations array for cleaner CSV)
   const columns = [
-    'session_id', 'participant_experience', 'mode', 'task_id', 'benchmark_ordinal', 
-    'sample_id', 'method', 'method_key', 'method_code', 'completion_state', 
-    'attempt', 'submitted_at', 'elapsed_seconds', 'stop_reason', 'success', 
-    'original_anchor_count', 'final_anchor_count'
+    'session_id', 'task_id', 'mode', 'method', 'method_code',
+    'participant_experience', 'accuracy', 'add_points_count', 'delete_points_count', 'move_points_count', 'undo_count', 'redo_count',
+    'success', 'elapsed_seconds', 'completion_state', 'stop_reason',
+    'attempt', 'original_anchor_count', 'final_anchor_count',
+    'source_path', 'source_svg_sha256', 'input_sha256', 'submitted_at',
+    'initial_path', 'edited_path', 'target_path', 'edited_svg'
   ]
 
   const header = columns.join(',')
   const rows = records.map(r => {
-    // Extract participant_experience from operations array if it exists
-    let exp = ''
-    if (Array.isArray(r.operations)) {
-      const expOp = r.operations.find((op: any) => op.type === 'participant_experience')
-      if (expOp) exp = expOp.experience
-    }
+    // Generate full SVG wrapper
+    const edited_svg = r.edited_path 
+      ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><path d="${r.edited_path}" fill="none" stroke="black" stroke-width="2"/></svg>` 
+      : ''
 
     return columns.map(col => {
-      let val = col === 'participant_experience' ? exp : r[col]
+      let val = col === 'edited_svg' ? edited_svg : r[col]
       if (val === null || val === undefined) return ''
       // Escape quotes and wrap in quotes if there's a comma
       const str = String(val)

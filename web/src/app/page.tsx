@@ -198,10 +198,13 @@ export default function StudyPage() {
       initial_path: data.initial_path || methodSrc?.d || '',
       edited_path: data.edited_path || '',
       target_path: currentTask?.after || '',
-      operations: [
-        ...(data.operations || []),
-        ...(data.accuracy !== undefined ? [{ type: 'accuracy_score', accuracy: data.accuracy }] : [])
-      ],
+      accuracy: data.accuracy,
+      add_points_count: data.add_points_count,
+      delete_points_count: data.delete_points_count,
+      move_points_count: data.move_points_count,
+      undo_count: data.undo_count,
+      redo_count: data.redo_count,
+      operations: data.operations || [],
     }
 
     setResults(prev => [...prev, record])

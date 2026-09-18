@@ -264,7 +264,30 @@ export default function AdminDashboard() {
                         {deletingId === session.id ? 'Deleting...' : 'Delete'}
                       </Button>
                     </div>
-                  )
+                    
+                    {/* Visual SVG Thumbnails for this session's formal records */}
+                    {sFormal.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-4 pt-4 border-t">
+                        {sFormal.map((r, idx) => (
+                          <div key={idx} className="flex flex-col gap-1 items-center bg-muted/30 p-2 rounded border">
+                            <div className="text-[9px] font-mono text-muted-foreground w-full flex justify-between">
+                               <span className="truncate mr-1" title={r.task_id}>{r.task_id}</span>
+                               <span className="font-bold text-primary shrink-0">{r.method_code}</span>
+                            </div>
+                            <svg viewBox="0 0 800 800" className="w-full aspect-square border bg-white rounded-sm shadow-sm" style={{ pointerEvents: 'none' }}>
+                               {r.target_path && <path d={r.target_path} fill="none" stroke="#ff00ff" strokeWidth="3" strokeDasharray="10,10" opacity="0.3" />}
+                               {r.edited_path && <path d={r.edited_path} fill="none" stroke="black" strokeWidth="4" />}
+                            </svg>
+                            <div className="text-[10px] w-full flex justify-between items-center mt-1 font-mono">
+                               <span>Acc:</span>
+                               <span className="font-medium text-foreground">{r.accuracy !== null && r.accuracy !== undefined ? r.accuracy.toFixed(1) + '%' : 'N/A'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
                 })}
               </div>
             )}
