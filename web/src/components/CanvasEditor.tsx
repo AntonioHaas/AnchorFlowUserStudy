@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Play, Pause, Check, X, RotateCcw, Maximize } from 'lucide-react'
+import { Play, Pause, Check, X, RotateCcw, Maximize, Plus, Minus } from 'lucide-react'
 
 function clone(x: any) {
   return JSON.parse(JSON.stringify(x))
@@ -31,7 +31,7 @@ export default function CanvasEditor({
       giveUp: 'Aufgeben',
       completed: 'Abgeschlossen',
       paused: 'Pausiert',
-      addAnchor: '＋ Anker',
+      addAnchor: 'Anker',
       deleteAnchor: 'Löschen',
       undo: 'Rückgängig',
       redo: 'Wiederholen',
@@ -45,8 +45,8 @@ export default function CanvasEditor({
       giveUp: 'Give Up',
       completed: 'Completed',
       paused: 'Paused',
-      addAnchor: '＋ Anchor',
-      deleteAnchor: 'Delete anchor',
+      addAnchor: 'Anchor',
+      deleteAnchor: 'Delete',
       undo: 'Undo',
       redo: 'Redo',
       resetView: 'Reset View',
@@ -707,11 +707,11 @@ export default function CanvasEditor({
       {/* Editor toolbar */}
       <div className="flex items-center justify-between gap-1 p-2 bg-muted/10 border-b shrink-0 overflow-x-auto hide-scrollbar">
         <div className="flex items-center gap-1">
-          <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
-            {t.addAnchor}
+          <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 w-7 p-0 shrink-0" title={t.addAnchor}>
+            <Plus className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
-            {t.deleteAnchor}
+          <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 w-7 p-0 shrink-0" title={t.deleteAnchor}>
+            <Minus className="h-4 w-4 text-red-500" />
           </Button>
           <Button size="sm" variant="outline" onClick={handleUndo} disabled={!s.history.length || !isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
             <RotateCcw className="mr-1 h-3 w-3" />

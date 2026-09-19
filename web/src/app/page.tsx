@@ -461,18 +461,58 @@ export default function StudyPage() {
         {/* Editor canvases - 3 columns in study phase, 1 centered in practice */}
         <div className="flex-1 min-h-0">
           {phase === 'practice' ? (
-            <div className="flex justify-center h-full max-w-xl mx-auto">
-              <CanvasEditor
-                key="practice"
-                method={methods[0]}
-                task={currentTask}
-                isPractice={true}
-                isActive={activeMethodKey === methods[0].key}
-                onActivate={() => setActiveMethodKey(methods[0].key)}
-                onPause={() => setActiveMethodKey(null)}
-                onComplete={handleComplete}
-                lang={lang}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(auto,600px)_1fr] gap-4 md:gap-8 items-center h-full max-w-7xl mx-auto w-full">
+              
+              <div className="hidden lg:flex flex-col gap-4 text-sm bg-card p-6 rounded-xl border shadow-sm h-fit">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-primary" />
+                  {lang === 'de' ? 'Aktionen' : 'Actions'}
+                </h3>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
+                    <p className="leading-snug text-muted-foreground"><strong className="text-foreground">{lang === 'de' ? 'Ankerpunkt bewegen' : 'Move anchor'}:</strong><br/>{lang === 'de' ? 'Ziehen Sie die blauen Punkte (Anker), um die Kurve grob zu verformen.' : 'Drag the blue points (anchors) to roughly deform the curve.'}</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
+                    <p className="leading-snug text-muted-foreground"><strong className="text-foreground">{lang === 'de' ? 'Ankerpunkt hinzufügen' : 'Add anchor'}:</strong><br/>{lang === 'de' ? 'Klicken Sie auf den Plus-Button, um an einer beliebigen Stelle neue Anker zu platzieren.' : 'Click the plus button to place new anchors anywhere on the curve.'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center h-full w-full min-h-0">
+                <div className="w-full max-w-xl h-full min-h-0">
+                  <CanvasEditor
+                    key="practice"
+                    method={methods[0]}
+                    task={currentTask}
+                    isPractice={true}
+                    isActive={activeMethodKey === methods[0].key}
+                    onActivate={() => setActiveMethodKey(methods[0].key)}
+                    onPause={() => setActiveMethodKey(null)}
+                    onComplete={handleComplete}
+                    lang={lang}
+                  />
+                </div>
+              </div>
+
+              <div className="hidden lg:flex flex-col gap-4 text-sm bg-card p-6 rounded-xl border shadow-sm h-fit">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-primary" />
+                  {lang === 'de' ? 'Details' : 'Details'}
+                </h3>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">3</span>
+                    <p className="leading-snug text-muted-foreground"><strong className="text-foreground">{lang === 'de' ? 'Steuerpunkte anpassen' : 'Adjust control points'}:</strong><br/>{lang === 'de' ? 'Ziehen Sie die orangen Kreise, um die genaue Krümmung am Ankerpunkt einzustellen.' : 'Drag the orange circles to fine-tune the curvature at the anchor.'}</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-bold">4</span>
+                    <p className="leading-snug text-muted-foreground"><strong className="text-foreground">{lang === 'de' ? 'Ansicht & Löschen' : 'View & Delete'}:</strong><br/>{lang === 'de' ? 'Zoomen & Pannen funktioniert mit Mausrad/Leertaste. Überflüssige Anker können gelöscht werden.' : 'Zoom and pan using scroll or spacebar. Redundant anchors can be deleted.'}</p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 h-full min-w-0">
