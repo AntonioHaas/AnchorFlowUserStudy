@@ -8,6 +8,185 @@ import { Trash2, Download, AlertTriangle, Users, Database, Clock, Home, Target }
 import { computeMatchScore } from '@/lib/score'
 import Geometry from '@/lib/geometry'
 
+// --- Stats Helpers ---
+function computeStats(values: number[]) {
+  if (!values || values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  
+  const q1 = sorted[Math.floor(sorted.length * 0.25)];
+  const median = sorted[Math.floor(sorted.length * 0.5)];
+  const q3 = sorted[Math.floor(sorted.length * 0.75)];
+  
+  const iqr = q3 - q1;
+  const lowerFence = q1 - 1.5 * iqr;
+  const upperFence = q3 + 1.5 * iqr;
+  
+  const outliers = sorted.filter(v => v < lowerFence || v > upperFence);
+  const nonOutliers = sorted.filter(v => v >= lowerFence && v <= upperFence);
+  
+  const whiskerMin = nonOutliers.length > 0 ? nonOutliers[0] : min;
+  const whiskerMax = nonOutliers.length > 0 ? nonOutliers[nonOutliers.length - 1] : max;
+  
+  const mean = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+  
+  return { min, max, q1, median, q3, whiskerMin, whiskerMax, outliers, mean, values };
+}
+
+const METHOD_COLORS: Record<string, string> = {
+  adavec: '#88aed0',
+  live: '#f4b17f',
+  ours: '#8fd589'
+};
+const METHOD_LABELS: Record<string, string> = {
+  adavec: 'AdaVec',
+  live: 'LIVE',
+  ours: 'Ours'
+};
+const METHOD_ORDER = ['adavec', 'live', 'ours']; // Display order (top to bottom)
+
+// --- Native SVG BoxPlot Component ---
+function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String(Math.round(v)) }: any) {
+  const stats: Record<string, any> = {};
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+  
+  for (const method of METHOD_ORDER) {
+    const vals = data[method] || [];
+    if (vals.length > 0) {
+      const s = computeStats(vals);
+      stats[method] = s;
+      if (s!.min < globalMin) globalMin = s!.min;
+      if (s!.max > globalMax) globalMax = s!.max;
+    }
+  }
+  
+  if (globalMin === Infinity) return <div className="text-center p-4 text-muted-foreground border rounded-lg bg-card text-sm">No data for {title}</div>;
+  
+  // Pad the bounds by 10% on each side
+  const range = globalMax - globalMin || 1;
+  const pad = range * 0.1;
+  let xMin = globalMin - pad;
+  let xMax = globalMax + pad;
+  if (xMin < 0 && globalMin >= 0) xMin = 0; // Don't dip below 0 if data is all positive
+  
+  // Dimensions
+  const w = 400;
+  const h = 200;
+  const margin = { top: 20, right: 30, bottom: 40, left: 70 };
+  const plotW = w - margin.left - margin.right;
+  const plotH = h - margin.top - margin.bottom;
+  
+  const xScale = (val: number) => margin.left + ((val - xMin) / (xMax - xMin)) * plotW;
+  const rowH = plotH / METHOD_ORDER.length;
+  
+  // Generate X ticks
+  const numTicks = 4;
+  const ticks = [];
+  for (let i = 0; i <= numTicks; i++) {
+    ticks.push(xMin + (i / numTicks) * (xMax - xMin));
+  }
+
+  return (
+    <Card className="flex flex-col h-full bg-white">
+      <CardContent className="p-0 flex-1 flex flex-col items-center justify-center relative overflow-hidden">
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full max-h-[300px]" style={{ fontFamily: 'system-ui, sans-serif' }}>
+          
+          {/* X-axis grid lines & labels */}
+          {ticks.map((tick, i) => {
+            const x = xScale(tick);
+            return (
+              <g key={i}>
+                <line x1={x} y1={margin.top} x2={x} y2={margin.top + plotH} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3,3" />
+                <text x={x} y={h - margin.bottom + 15} fontSize="11" fill="#64748b" textAnchor="middle" fontWeight="500">
+                  {Math.round(tick)}
+                </text>
+              </g>
+            );
+          })}
+          
+          {/* Main X and Y axis lines */}
+          <line x1={margin.left} y1={margin.top} x2={margin.left} y2={margin.top + plotH} stroke="#cbd5e1" strokeWidth="1.5" />
+          <line x1={margin.left} y1={margin.top + plotH} x2={w - margin.right} y2={margin.top + plotH} stroke="#cbd5e1" strokeWidth="1.5" />
+          
+          {/* X Label */}
+          <text x={margin.left + plotW / 2} y={h - 5} fontSize="12" fill="#0f172a" textAnchor="middle" fontWeight="bold">
+            {xLabel}
+          </text>
+
+          {/* Render each method row */}
+          {METHOD_ORDER.map((method, idx) => {
+            const s = stats[method];
+            if (!s) return null;
+            
+            const cy = margin.top + (idx * rowH) + (rowH / 2);
+            const boxH = rowH * 0.5;
+            const yTop = cy - boxH / 2;
+            
+            return (
+              <g key={method} className="group">
+                {/* Y-axis Label */}
+                <text x={margin.left - 10} y={cy} fontSize="12" fill="#0f172a" textAnchor="end" alignmentBaseline="middle" fontWeight="bold">
+                  {METHOD_LABELS[method]}
+                </text>
+                
+                {/* Whiskers */}
+                <line x1={xScale(s.whiskerMin)} y1={cy} x2={xScale(s.q1)} y2={cy} stroke="#64748b" strokeWidth="1.5" />
+                <line x1={xScale(s.q3)} y1={cy} x2={xScale(s.whiskerMax)} y2={cy} stroke="#64748b" strokeWidth="1.5" />
+                <line x1={xScale(s.whiskerMin)} y1={yTop + boxH*0.2} x2={xScale(s.whiskerMin)} y2={yTop + boxH*0.8} stroke="#64748b" strokeWidth="1.5" />
+                <line x1={xScale(s.whiskerMax)} y1={yTop + boxH*0.2} x2={xScale(s.whiskerMax)} y2={yTop + boxH*0.8} stroke="#64748b" strokeWidth="1.5" />
+                
+                {/* IQR Box */}
+                <rect 
+                  x={xScale(s.q1)} 
+                  y={yTop} 
+                  width={xScale(s.q3) - xScale(s.q1)} 
+                  height={boxH} 
+                  fill={METHOD_COLORS[method]} 
+                  stroke="none"
+                />
+                
+                {/* Median Line */}
+                <line x1={xScale(s.median)} y1={yTop} x2={xScale(s.median)} y2={yTop + boxH} stroke="#0f172a" strokeWidth="2" />
+                
+                {/* Mean Label (above box) */}
+                <text x={xScale(s.mean)} y={yTop - 6} fontSize="11" fill="#0f172a" textAnchor="middle" fontWeight="bold">
+                  {formatValue(s.mean)}
+                </text>
+                
+                {/* Scatter Points (Jittered) */}
+                {s.values.map((v: number, vi: number) => {
+                  // Pseudo-random jitter based on index so it's stable
+                  const jitter = (Math.sin(vi * 999) * 0.4) * boxH;
+                  const isOutlier = v < s.whiskerMin || v > s.whiskerMax;
+                  return (
+                    <circle 
+                      key={vi} 
+                      cx={xScale(v)} 
+                      cy={cy + jitter} 
+                      r="1.5" 
+                      fill="none" 
+                      stroke="#94a3b8" 
+                      strokeWidth="1"
+                      opacity={isOutlier ? 1 : 0.6}
+                    />
+                  );
+                })}
+
+                {/* Invisible hover area for tooltip */}
+                <rect x={margin.left} y={yTop - 10} width={plotW} height={boxH + 20} fill="transparent">
+                  <title>{`${METHOD_LABELS[method]}\nMean: ${formatValue(s.mean)}\nMedian: ${formatValue(s.median)}\nQ1: ${formatValue(s.q1)}\nQ3: ${formatValue(s.q3)}`}</title>
+                </rect>
+              </g>
+            );
+          })}
+        </svg>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<{ sessions: any[], records: any[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -104,6 +283,34 @@ export default function AdminDashboard() {
   
   const totalTime = formalRecords.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0)
   const avgTimePerOption = formalRecords.length > 0 ? (totalTime / formalRecords.length).toFixed(1) : '0.0'
+
+  // Compute datasets for box plots
+  const boxDataTime: Record<string, number[]> = { ours: [], live: [], adavec: [] };
+  const boxDataOps: Record<string, number[]> = { ours: [], live: [], adavec: [] };
+  const boxDataAcc: Record<string, number[]> = { ours: [], live: [], adavec: [] };
+  
+  formalRecords.forEach(r => {
+    const mk = r.method_key;
+    if (!boxDataTime[mk]) return;
+    
+    if (r.elapsed_seconds !== null && r.elapsed_seconds !== undefined) {
+      boxDataTime[mk].push(r.elapsed_seconds);
+    }
+    
+    const opsCount = (r.add_points_count || 0) + (r.delete_points_count || 0) + (r.move_points_count || 0) + (r.undo_count || 0) + (r.redo_count || 0);
+    boxDataOps[mk].push(opsCount);
+    
+    // dynamically compute accuracy if missing
+    let acc = r.accuracy;
+    if ((acc === null || acc === undefined) && r.edited_path && r.target_path) {
+      try {
+        acc = computeMatchScore(Geometry.parse(r.edited_path), r.target_path).accuracy;
+      } catch (e) {}
+    }
+    if (acc !== null && acc !== undefined) {
+      boxDataAcc[mk].push(acc);
+    }
+  });
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-muted/10">
@@ -217,7 +424,14 @@ export default function AdminDashboard() {
           })}
         </div>
 
-        <Card>
+        <h2 className="text-xl font-bold tracking-tight mt-10 mb-2">Performance Distributions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <BoxPlotChart title="Editing Time" data={boxDataTime} xLabel="(a) Editing time (s) ↓" />
+          <BoxPlotChart title="Operations" data={boxDataOps} xLabel="(b) Editing operations ↓" />
+          <BoxPlotChart title="Accuracy" data={boxDataAcc} xLabel="(c) Final IoU (%) ↑" />
+        </div>
+
+        <Card className="mt-10">
           <CardHeader>
             <CardTitle>Recent Sessions</CardTitle>
             <CardDescription>A list of all study runs in the database.</CardDescription>
@@ -233,37 +447,38 @@ export default function AdminDashboard() {
                   const sRecords = data.records.filter(r => r.session_id === session.id)
                   const sFormal = sRecords.filter(r => r.mode === 'clean2400_editing_pilot')
                   return (
-                    <div key={session.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg bg-card">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-sm font-medium">Session {session.id.split('-')[0]}...</span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {new Date(session.created_at).toLocaleString()}
-                          </Badge>
+                    <div key={session.id} className="flex flex-col gap-4 p-4 border rounded-lg bg-card">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-medium">Session {session.id.split('-')[0]}...</span>
+                            <Badge variant="outline" className="text-[10px]">
+                              {new Date(session.created_at).toLocaleString()}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground space-x-3 flex items-center">
+                            <span>{sRecords.length} total edits</span>
+                            <Separator orientation="vertical" className="h-3" />
+                            <span>{sFormal.length} formal edits</span>
+                            {session.note && (
+                              <>
+                                <Separator orientation="vertical" className="h-3" />
+                                <span className="text-primary truncate max-w-[200px]">"{session.note}"</span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground space-x-3 flex items-center">
-                          <span>{sRecords.length} total edits</span>
-                          <Separator orientation="vertical" className="h-3" />
-                          <span>{sFormal.length} formal edits</span>
-                          {session.note && (
-                            <>
-                              <Separator orientation="vertical" className="h-3" />
-                              <span className="text-primary truncate max-w-[200px]">"{session.note}"</span>
-                            </>
-                          )}
-                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                          onClick={() => handleDeleteRun(session.id)}
+                          disabled={deletingId === session.id}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deletingId === session.id ? 'Deleting...' : 'Delete'}
+                        </Button>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                        onClick={() => handleDeleteRun(session.id)}
-                        disabled={deletingId === session.id}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {deletingId === session.id ? 'Deleting...' : 'Delete'}
-                      </Button>
-                    </div>
                     
                     {/* Visual SVG Thumbnails for this session's formal records */}
                     {sFormal.length > 0 && (

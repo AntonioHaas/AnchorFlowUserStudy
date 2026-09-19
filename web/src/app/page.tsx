@@ -362,7 +362,7 @@ export default function StudyPage() {
                           <option value="pro">{lang === 'de' ? 'Profi' : 'Pro'}</option>
                         </select>
                       </div>
-                      <Button size="lg" disabled={!svgExperience} onClick={() => { setActiveMethodKey(null); setPhase('practice'); }} className="px-12 text-lg h-14">
+                      <Button suppressHydrationWarning size="lg" disabled={svgExperience === '' ? true : undefined} onClick={() => { setActiveMethodKey(null); setPhase('practice'); }} className="px-12 text-lg h-14">
                         {t.landingStart}
                       </Button>
                     </div>
