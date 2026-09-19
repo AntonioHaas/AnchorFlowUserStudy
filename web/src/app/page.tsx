@@ -47,8 +47,8 @@ const TRANSLATIONS = {
     finish: 'Finish',
     overallProgress: 'Overall progress',
     landingTitle: 'Welcome to the Shape Editing Study',
-    landingP1: 'In this study, you will edit vector graphics (SVGs). You will be shown a target (dashed outline), and you should try to recreate the shape as closely as possible using the provided tools.',
-    landingP2: 'You will begin with a short practice phase, followed by the 4 tasks with 3 options each.',
+    landingP1: 'Welcome! This study explores how easily and precisely you can modify vector paths.',
+    landingP2: 'You will begin with a short practice phase, followed by the 4 tasks with 4 options each.',
     landingStart: 'Start Study',
     doneTitle: 'Study Complete',
     doneDesc: 'Thank you for your participation.',
@@ -66,15 +66,15 @@ const TRANSLATIONS = {
   }
 }
 
-const ALL_METHOD_KEYS = ['ours', 'adavec', 'live'] as const
+const ALL_METHOD_KEYS = ['ours', 'adavec', 'reference', 'live'] as const
 type MethodKey = typeof ALL_METHOD_KEYS[number]
-const SLOT_LETTERS = ['A', 'B', 'C'] as const
+const SLOT_LETTERS = ['A', 'B', 'C', 'D'] as const
 
 function shuffleArray<T>(array: readonly T[]): T[] {
   const arr = [...array]
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
   return arr
 }
@@ -121,29 +121,29 @@ export default function StudyPage() {
 
   const t = TRANSLATIONS[lang]
 
-  const currentTask: any = phase === 'practice' 
-    ? tasksData.practice[index] 
+  const currentTask: any = phase === 'practice'
+    ? tasksData.practice[index]
     : (phase === 'study' ? tasksData.formal[index] : null)
-  
-  // In study phase, map randomized method keys to presentation slots A, B, C
+
+  // In study phase, map randomized method keys to presentation slots A, B, C, D
   const methods = phase === 'practice'
     ? [{ key: 'practice', label: t.practice, short: 'P' }]
     : (taskMethodOrders[index] || ALL_METHOD_KEYS).map((key, slotIdx) => {
-        const letter = SLOT_LETTERS[slotIdx]
-        return {
-          key,
-          short: letter,
-          label: `${lang === 'de' ? 'Variante' : 'Option'} ${letter}`,
-        }
-      })
+      const letter = SLOT_LETTERS[slotIdx]
+      return {
+        key,
+        short: letter,
+        label: `${lang === 'de' ? 'Variante' : 'Option'} ${letter}`,
+      }
+    })
 
   const totalFormalTasks = tasksData.formal.length * ALL_METHOD_KEYS.length
   const completedFormalMethods = results.filter(r => r.mode === 'clean2400_editing_pilot').length
   const progressValue = phase === 'practice' ? 0 : (completedFormalMethods / totalFormalTasks) * 100
 
   // Calculate if current task has completed all presented options
-  const currentStepResults = results.filter(r => 
-    r.task_id === currentTask?.id && 
+  const currentStepResults = results.filter(r =>
+    r.task_id === currentTask?.id &&
     r.mode === (phase === 'practice' ? 'practice_pilot' : 'clean2400_editing_pilot')
   )
   const isStepComplete = currentStepResults.length >= methods.length
@@ -166,11 +166,14 @@ export default function StudyPage() {
       setActiveMethodKey(null)
     }
 
-    const methodSrc = currentTask?.predictions?.[methodKey]
+    const methodSrc = methodKey === 'reference' ? currentTask?.reference : currentTask?.predictions?.[methodKey]
+    if (!methodSrc) return
+
     const actualMethodName = methodSrc?.method || (
       methodKey === 'ours' ? 'Ours' :
-      methodKey === 'adavec' ? 'AdaVec' :
-      methodKey === 'live' ? 'LIVE' : (data.method || methodKey)
+        methodKey === 'adavec' ? 'AdaVec' :
+          methodKey === 'reference' ? 'Reference' :
+            methodKey === 'live' ? 'LIVE' : (data.method || methodKey)
     )
 
     const displayedSlot = methods.find(m => m.key === methodKey)?.short || data.method_code || 'A'
@@ -280,7 +283,7 @@ export default function StudyPage() {
     <header className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shrink-0 shadow-sm" role="banner">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
         <h1 className="text-base font-semibold tracking-tight">{t.title}</h1>
-        
+
         {phase !== 'landing' && phase !== 'done' && currentTask && (
           <>
             <Separator orientation="vertical" className="hidden sm:block h-8" />
@@ -298,9 +301,9 @@ export default function StudyPage() {
       </div>
 
       <div className="flex items-center gap-4 shrink-0">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
           className="h-8"
           aria-label={lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
@@ -310,7 +313,7 @@ export default function StudyPage() {
         </Button>
         {phase !== 'landing' && phase !== 'done' && (
           <Badge variant={phase === 'practice' ? 'secondary' : 'default'} className="px-2 py-0.5" aria-label={`Fortschritt: ${phase === 'practice' ? t.practice : t.task}`}>
-            {phase === 'practice' 
+            {phase === 'practice'
               ? `${t.practice} ${index + 1} / ${tasksData.practice.length}`
               : `${t.task} ${index + 1} / ${tasksData.formal.length}`
             }
@@ -391,7 +394,7 @@ export default function StudyPage() {
                 <CardTitle className="text-xl">{t.doneTitle}</CardTitle>
                 <CardDescription>{t.doneDesc}</CardDescription>
               </CardHeader>
-              
+
               {/* Post-study Performance Feedback */}
               <CardContent className="space-y-5 pt-1">
                 <p className="text-xs text-center text-muted-foreground">
@@ -472,7 +475,7 @@ export default function StudyPage() {
               />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 h-full min-w-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 h-full min-w-0">
               {methods.map(m => (
                 <CanvasEditor
                   key={m.key + index + phase}
@@ -572,7 +575,7 @@ export default function StudyPage() {
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-4">
             {!isStepComplete && (
               <span className="text-xs text-destructive font-medium">
@@ -581,10 +584,10 @@ export default function StudyPage() {
             )}
           </div>
         </div>
-        
+
         {/* ── Citation ── */}
         <div className="text-center text-xs text-muted-foreground mt-1 mb-6">
-          Einige Formen stammen aus <a href="https://github.com/amcghm/ColorSVG-100K" className="underline hover:text-foreground" target="_blank" rel="noreferrer">ColorSVG-100K</a> (CC BY-NC-SA 4.0) und STIX-Schriften. 
+          Einige Formen stammen aus <a href="https://github.com/amcghm/ColorSVG-100K" className="underline hover:text-foreground" target="_blank" rel="noreferrer">ColorSVG-100K</a> (CC BY-NC-SA 4.0) und STIX-Schriften.
           Some shapes come from ColorSVG-100K and STIX fonts. <a href="/attribution.json" className="underline hover:text-foreground" target="_blank" rel="noreferrer">Lizenzen / Licenses</a>.
         </div>
       </div>

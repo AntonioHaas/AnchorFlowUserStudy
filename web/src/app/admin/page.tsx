@@ -14,44 +14,46 @@ function computeStats(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b);
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
-  
+
   const q1 = sorted[Math.floor(sorted.length * 0.25)];
   const median = sorted[Math.floor(sorted.length * 0.5)];
   const q3 = sorted[Math.floor(sorted.length * 0.75)];
-  
+
   const iqr = q3 - q1;
   const lowerFence = q1 - 1.5 * iqr;
   const upperFence = q3 + 1.5 * iqr;
-  
+
   const outliers = sorted.filter(v => v < lowerFence || v > upperFence);
   const nonOutliers = sorted.filter(v => v >= lowerFence && v <= upperFence);
-  
+
   const whiskerMin = nonOutliers.length > 0 ? nonOutliers[0] : min;
   const whiskerMax = nonOutliers.length > 0 ? nonOutliers[nonOutliers.length - 1] : max;
-  
+
   const mean = sorted.reduce((a, b) => a + b, 0) / sorted.length;
-  
+
   return { min, max, q1, median, q3, whiskerMin, whiskerMax, outliers, mean, values };
 }
 
 const METHOD_COLORS: Record<string, string> = {
   adavec: '#88aed0',
   live: '#f4b17f',
+  reference: '#c28fd0',
   ours: '#8fd589'
 };
 const METHOD_LABELS: Record<string, string> = {
   adavec: 'AdaVec',
   live: 'LIVE',
+  reference: 'Reference',
   ours: 'Ours'
 };
-const METHOD_ORDER = ['adavec', 'live', 'ours']; // Display order (top to bottom)
+const METHOD_ORDER = ['adavec', 'live', 'reference', 'ours']; // Display order (top to bottom)
 
 // --- Native SVG BoxPlot Component ---
 function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String(Math.round(v)) }: any) {
   const stats: Record<string, any> = {};
   let globalMin = Infinity;
   let globalMax = -Infinity;
-  
+
   for (const method of METHOD_ORDER) {
     const vals = data[method] || [];
     if (vals.length > 0) {
@@ -61,26 +63,26 @@ function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String
       if (s!.max > globalMax) globalMax = s!.max;
     }
   }
-  
+
   if (globalMin === Infinity) return <div className="text-center p-4 text-muted-foreground border rounded-lg bg-card text-sm">No data for {title}</div>;
-  
+
   // Pad the bounds by 10% on each side
   const range = globalMax - globalMin || 1;
   const pad = range * 0.1;
   let xMin = globalMin - pad;
   let xMax = globalMax + pad;
   if (xMin < 0 && globalMin >= 0) xMin = 0; // Don't dip below 0 if data is all positive
-  
+
   // Dimensions
   const w = 400;
   const h = 200;
   const margin = { top: 20, right: 30, bottom: 40, left: 70 };
   const plotW = w - margin.left - margin.right;
   const plotH = h - margin.top - margin.bottom;
-  
+
   const xScale = (val: number) => margin.left + ((val - xMin) / (xMax - xMin)) * plotW;
   const rowH = plotH / METHOD_ORDER.length;
-  
+
   // Generate X ticks
   const numTicks = 4;
   const ticks = [];
@@ -92,7 +94,7 @@ function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String
     <Card className="flex flex-col h-full bg-white">
       <CardContent className="p-0 flex-1 flex flex-col items-center justify-center relative overflow-hidden">
         <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full max-h-[300px]" style={{ fontFamily: 'system-ui, sans-serif' }}>
-          
+
           {/* X-axis grid lines & labels */}
           {ticks.map((tick, i) => {
             const x = xScale(tick);
@@ -105,11 +107,11 @@ function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String
               </g>
             );
           })}
-          
+
           {/* Main X and Y axis lines */}
           <line x1={margin.left} y1={margin.top} x2={margin.left} y2={margin.top + plotH} stroke="#cbd5e1" strokeWidth="1.5" />
           <line x1={margin.left} y1={margin.top + plotH} x2={w - margin.right} y2={margin.top + plotH} stroke="#cbd5e1" strokeWidth="1.5" />
-          
+
           {/* X Label */}
           <text x={margin.left + plotW / 2} y={h - 5} fontSize="12" fill="#0f172a" textAnchor="middle" fontWeight="bold">
             {xLabel}
@@ -119,55 +121,55 @@ function BoxPlotChart({ title, data, xLabel, formatValue = (v: number) => String
           {METHOD_ORDER.map((method, idx) => {
             const s = stats[method];
             if (!s) return null;
-            
+
             const cy = margin.top + (idx * rowH) + (rowH / 2);
             const boxH = rowH * 0.5;
             const yTop = cy - boxH / 2;
-            
+
             return (
               <g key={method} className="group">
                 {/* Y-axis Label */}
                 <text x={margin.left - 10} y={cy} fontSize="12" fill="#0f172a" textAnchor="end" alignmentBaseline="middle" fontWeight="bold">
                   {METHOD_LABELS[method]}
                 </text>
-                
+
                 {/* Whiskers */}
                 <line x1={xScale(s.whiskerMin)} y1={cy} x2={xScale(s.q1)} y2={cy} stroke="#64748b" strokeWidth="1.5" />
                 <line x1={xScale(s.q3)} y1={cy} x2={xScale(s.whiskerMax)} y2={cy} stroke="#64748b" strokeWidth="1.5" />
-                <line x1={xScale(s.whiskerMin)} y1={yTop + boxH*0.2} x2={xScale(s.whiskerMin)} y2={yTop + boxH*0.8} stroke="#64748b" strokeWidth="1.5" />
-                <line x1={xScale(s.whiskerMax)} y1={yTop + boxH*0.2} x2={xScale(s.whiskerMax)} y2={yTop + boxH*0.8} stroke="#64748b" strokeWidth="1.5" />
-                
+                <line x1={xScale(s.whiskerMin)} y1={yTop + boxH * 0.2} x2={xScale(s.whiskerMin)} y2={yTop + boxH * 0.8} stroke="#64748b" strokeWidth="1.5" />
+                <line x1={xScale(s.whiskerMax)} y1={yTop + boxH * 0.2} x2={xScale(s.whiskerMax)} y2={yTop + boxH * 0.8} stroke="#64748b" strokeWidth="1.5" />
+
                 {/* IQR Box */}
-                <rect 
-                  x={xScale(s.q1)} 
-                  y={yTop} 
-                  width={xScale(s.q3) - xScale(s.q1)} 
-                  height={boxH} 
-                  fill={METHOD_COLORS[method]} 
+                <rect
+                  x={xScale(s.q1)}
+                  y={yTop}
+                  width={xScale(s.q3) - xScale(s.q1)}
+                  height={boxH}
+                  fill={METHOD_COLORS[method]}
                   stroke="none"
                 />
-                
+
                 {/* Median Line */}
                 <line x1={xScale(s.median)} y1={yTop} x2={xScale(s.median)} y2={yTop + boxH} stroke="#0f172a" strokeWidth="2" />
-                
+
                 {/* Mean Label (above box) */}
                 <text x={xScale(s.mean)} y={yTop - 6} fontSize="11" fill="#0f172a" textAnchor="middle" fontWeight="bold">
                   {formatValue(s.mean)}
                 </text>
-                
+
                 {/* Scatter Points (Jittered) */}
                 {s.values.map((v: number, vi: number) => {
                   // Pseudo-random jitter based on index so it's stable
                   const jitter = (Math.sin(vi * 999) * 0.4) * boxH;
                   const isOutlier = v < s.whiskerMin || v > s.whiskerMax;
                   return (
-                    <circle 
-                      key={vi} 
-                      cx={xScale(v)} 
-                      cy={cy + jitter} 
-                      r="1.5" 
-                      fill="none" 
-                      stroke="#94a3b8" 
+                    <circle
+                      key={vi}
+                      cx={xScale(v)}
+                      cy={cy + jitter}
+                      r="1.5"
+                      fill="none"
+                      stroke="#94a3b8"
                       strokeWidth="1"
                       opacity={isOutlier ? 1 : 0.6}
                     />
@@ -219,7 +221,7 @@ export default function AdminDashboard() {
 
   const handleDeleteRun = async (sessionId: string) => {
     if (!confirm(`Are you sure you want to delete session ${sessionId}? This cannot be undone.`)) return
-    
+
     setDeletingId(sessionId)
     try {
       const res = await fetch(`/api/admin/dashboard?session_id=${encodeURIComponent(sessionId)}`, {
@@ -236,7 +238,7 @@ export default function AdminDashboard() {
 
   const handleClearDatabase = async () => {
     if (!confirm("WARNING: Are you absolutely sure you want to clear ALL study sessions and records? This CANNOT BE UNDONE.")) return
-    
+
     setDeletingId('all')
     try {
       const res = await fetch(`/api/admin/dashboard`, {
@@ -280,32 +282,32 @@ export default function AdminDashboard() {
   const totalSessions = data.sessions.length
   const totalRecords = data.records.length
   const formalRecords = data.records.filter(r => r.mode === 'clean2400_editing_pilot')
-  
+
   const totalTime = formalRecords.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0)
   const avgTimePerOption = formalRecords.length > 0 ? (totalTime / formalRecords.length).toFixed(1) : '0.0'
 
   // Compute datasets for box plots
-  const boxDataTime: Record<string, number[]> = { ours: [], live: [], adavec: [] };
-  const boxDataOps: Record<string, number[]> = { ours: [], live: [], adavec: [] };
-  const boxDataAcc: Record<string, number[]> = { ours: [], live: [], adavec: [] };
-  
+  const boxDataTime: Record<string, number[]> = { ours: [], live: [], adavec: [], reference: [] };
+  const boxDataOps: Record<string, number[]> = { ours: [], live: [], adavec: [], reference: [] };
+  const boxDataAcc: Record<string, number[]> = { ours: [], live: [], adavec: [], reference: [] };
+
   formalRecords.forEach(r => {
     const mk = r.method_key;
     if (!boxDataTime[mk]) return;
-    
+
     if (r.elapsed_seconds !== null && r.elapsed_seconds !== undefined) {
       boxDataTime[mk].push(r.elapsed_seconds);
     }
-    
+
     const opsCount = (r.add_points_count || 0) + (r.delete_points_count || 0) + (r.move_points_count || 0) + (r.undo_count || 0) + (r.redo_count || 0);
     boxDataOps[mk].push(opsCount);
-    
+
     // dynamically compute accuracy if missing
     let acc = r.accuracy;
     if ((acc === null || acc === undefined) && r.edited_path && r.target_path) {
       try {
         acc = computeMatchScore(Geometry.parse(r.edited_path), r.target_path).accuracy;
-      } catch (e) {}
+      } catch (e) { }
     }
     if (acc !== null && acc !== undefined) {
       boxDataAcc[mk].push(acc);
@@ -374,8 +376,8 @@ export default function AdminDashboard() {
             { key: 'live', name: 'LIVE' }
           ].map(method => {
             const mRecords = formalRecords.filter(r => r.method_key === method.key)
-            const mAvg = mRecords.length > 0 
-              ? (mRecords.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0) / mRecords.length).toFixed(1) 
+            const mAvg = mRecords.length > 0
+              ? (mRecords.reduce((acc, r) => acc + (r.elapsed_seconds || 0), 0) / mRecords.length).toFixed(1)
               : '0.0'
 
             // Compute accuracy dynamically if possible
@@ -468,9 +470,9 @@ export default function AdminDashboard() {
                             )}
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
                           onClick={() => handleDeleteRun(session.id)}
                           disabled={deletingId === session.id}
@@ -479,30 +481,30 @@ export default function AdminDashboard() {
                           {deletingId === session.id ? 'Deleting...' : 'Delete'}
                         </Button>
                       </div>
-                    
-                    {/* Visual SVG Thumbnails for this session's formal records */}
-                    {sFormal.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-4 pt-4 border-t">
-                        {sFormal.map((r, idx) => (
-                          <div key={idx} className="flex flex-col gap-1 items-center bg-muted/30 p-2 rounded border">
-                            <div className="text-[9px] font-mono text-muted-foreground w-full flex justify-between">
-                               <span className="truncate mr-1" title={r.task_id}>{r.task_id}</span>
-                               <span className="font-bold text-primary shrink-0">{r.method_code}</span>
+
+                      {/* Visual SVG Thumbnails for this session's formal records */}
+                      {sFormal.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-4 pt-4 border-t">
+                          {sFormal.map((r, idx) => (
+                            <div key={idx} className="flex flex-col gap-1 items-center bg-muted/30 p-2 rounded border">
+                              <div className="text-[9px] font-mono text-muted-foreground w-full flex justify-between">
+                                <span className="truncate mr-1" title={r.task_id}>{r.task_id}</span>
+                                <span className="font-bold text-primary shrink-0">{r.method_code}</span>
+                              </div>
+                              <svg viewBox="0 0 800 800" className="w-full aspect-square border bg-white rounded-sm shadow-sm" style={{ pointerEvents: 'none' }}>
+                                {r.target_path && <path d={r.target_path} fill="none" stroke="#ff00ff" strokeWidth="3" strokeDasharray="10,10" opacity="0.3" />}
+                                {r.edited_path && <path d={r.edited_path} fill="none" stroke="black" strokeWidth="4" />}
+                              </svg>
+                              <div className="text-[10px] w-full flex justify-between items-center mt-1 font-mono">
+                                <span>Acc:</span>
+                                <span className="font-medium text-foreground">{r.accuracy !== null && r.accuracy !== undefined ? r.accuracy.toFixed(1) + '%' : 'N/A'}</span>
+                              </div>
                             </div>
-                            <svg viewBox="0 0 800 800" className="w-full aspect-square border bg-white rounded-sm shadow-sm" style={{ pointerEvents: 'none' }}>
-                               {r.target_path && <path d={r.target_path} fill="none" stroke="#ff00ff" strokeWidth="3" strokeDasharray="10,10" opacity="0.3" />}
-                               {r.edited_path && <path d={r.edited_path} fill="none" stroke="black" strokeWidth="4" />}
-                            </svg>
-                            <div className="text-[10px] w-full flex justify-between items-center mt-1 font-mono">
-                               <span>Acc:</span>
-                               <span className="font-medium text-foreground">{r.accuracy !== null && r.accuracy !== undefined ? r.accuracy.toFixed(1) + '%' : 'N/A'}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
                 })}
               </div>
             )}

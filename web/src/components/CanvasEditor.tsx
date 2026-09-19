@@ -58,7 +58,7 @@ export default function CanvasEditor({
   // Stable editor state in ref so that React renders/props never disrupt pointer drag
   const editorRef = useRef<any>(null)
   if (!editorRef.current || editorRef.current.taskId !== task.id || editorRef.current.methodKey !== method.key) {
-    const src = task.predictions[method.key]
+    const src = method.key === 'reference' ? task.reference : task.predictions[method.key]
     const graph = Geometry.parse(src.d)
     editorRef.current = {
       taskId: task.id,
@@ -102,7 +102,7 @@ export default function CanvasEditor({
 
   // Reset editor state when task or method changes
   useEffect(() => {
-    const src = task.predictions[method.key]
+    const src = method.key === 'reference' ? task.reference : task.predictions[method.key]
     const graph = Geometry.parse(src.d)
     editorRef.current = {
       taskId: task.id,
@@ -180,7 +180,7 @@ export default function CanvasEditor({
     setSubmitted(true)
     const timeLimit = isPractice ? 120 : 90
     const elapsedSeconds = +(timeLimit - remainingTime).toFixed(3)
-    const methodSrc = task.predictions?.[method.key]
+    const methodSrc = method.key === 'reference' ? task.reference : task.predictions?.[method.key]
     const s = editorRef.current
 
     // Only compute and provide performance feedback on the practice / training task
@@ -705,21 +705,21 @@ export default function CanvasEditor({
       <Separator />
       
       {/* Editor toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-muted/10 border-b shrink-0">
+      <div className="flex items-center justify-between gap-1 p-2 bg-muted/10 border-b shrink-0 overflow-x-auto hide-scrollbar">
         <div className="flex items-center gap-1">
-          <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5">
+          <Button size="sm" variant={s.adding ? "secondary" : "outline"} onClick={toggleAdding} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
             {t.addAnchor}
           </Button>
-          <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+          <Button size="sm" variant="outline" onClick={handleRemove} disabled={!s.selected.size || s.graph.nodes.length <= 2 || !isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
             {t.deleteAnchor}
           </Button>
-          <Button size="sm" variant="outline" onClick={handleUndo} disabled={!s.history.length || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+          <Button size="sm" variant="outline" onClick={handleUndo} disabled={!s.history.length || !isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
             <RotateCcw className="mr-1 h-3 w-3" />
-            <span className="hidden sm:inline">{t.undo}</span>
+            <span className="hidden xl:inline">{t.undo}</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={handleRedo} disabled={!s.future.length || !isActive || submitted} className="h-7 text-[11px] px-1.5">
+          <Button size="sm" variant="outline" onClick={handleRedo} disabled={!s.future.length || !isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0">
             <RotateCcw className="mr-1 h-3 w-3 scale-x-[-1]" />
-            <span className="hidden sm:inline">{t.redo}</span>
+            <span className="hidden xl:inline">{t.redo}</span>
           </Button>
         </div>
         <Button size="sm" variant="outline" onClick={handleResetView} disabled={!isActive || submitted} className="h-7 text-[11px] px-1.5 shrink-0" title={t.resetView}>
